@@ -1,0 +1,14 @@
+{
+  // The game runs in the browser: tsc checks it with the DOM types.
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": [],
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "strict": true
+  }
+}

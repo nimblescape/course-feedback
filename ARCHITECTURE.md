@@ -90,8 +90,7 @@ first feedback starts with `# Feedback: <title> – <time>`; an update appends
     its root `package-lock.json` with `npm ci --ignore-scripts`, outside the
     checkout. `tsc` checks `main.ts` and its imports with a `tsconfig.json` that
     extends the course's root `tsconfig.json` (a workspace `tsconfig.json` does
-    not count), then tsx runs the program. A workspace that is its own npm
-    project (Vite, React) is not checked yet.
+    not count), then tsx runs the program.
   - `runtime: deno` (default, while a course still teaches Deno): `tsc` checks
     like `deno check main.ts`, and `node` runs the emitted JavaScript.
     [`deno-compat.mjs`](skills/typescript/tools/deno-compat.mjs) provides
@@ -101,6 +100,14 @@ first feedback starts with `# Feedback: <title> – <time>`; an update appends
 
   For repeatable runs, both seed `Math.random()`
   ([`seed-random.mjs`](skills/typescript/tools/seed-random.mjs)).
+
+  A workspace that is its own npm project (its `package.json` is in the
+  template copy of the class repository, for example a Vite game) gets
+  `npm run check` of the project instead
+  ([`check-project.sh`](skills/typescript/check-project.sh)): `package.json`,
+  `package-lock.json` and `tsconfig.json` in the version of the template copy
+  (a student change gets a note), `npm ci --ignore-scripts`, the check in the
+  sandbox, not run. A `package.json` that a student adds is ignored.
 
 - `html`: `index.html` exists and links a stylesheet of the workspace;
   `html-validate` with the presets the students see in VS Code.

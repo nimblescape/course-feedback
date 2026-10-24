@@ -156,8 +156,13 @@ the model never see it.
    dependencies such as `@majikmate/ts-utils` must be public), type-checks
    `main.ts` and its imports with a `tsconfig.json` that extends the course's
    root `tsconfig.json`, and runs the program with tsx. A `tsconfig.json` in the
-   workspace does not count. A workspace with its own `package.json` (Vite,
-   React) is not checked yet.
+   workspace does not count.
+
+   A workspace that is its own npm project (a `package.json` of the template,
+   for example a Vite game) gets `npm run check` of the project instead, with
+   its own `package-lock.json`, in both runtimes. The project needs a `check`
+   script (for example `tsc --noEmit`). Students should install with `npm ci`,
+   which keeps the lock file unchanged.
 
 3. Add `.github/instructions/feedback-course.instructions.md` with the course
    rules: students, language and tone, README sections, what the automatic
