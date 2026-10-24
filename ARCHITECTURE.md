@@ -1,0 +1,125 @@
+# Feedback Architecture
+
+After every push of a student, the feedback compares the work with the
+assignment README and writes or extends `FEEDBACK.md` next to the README.
+
+**Principle:** the feedback is consistent and deterministic. Scripts decide
+everything that can be decided without judgement. The only variable part is the
+model's judgement of the student's code: one status and one comment per
+requirement, best practices, suggestions and a summary.
+
+## Pipeline
+
+```text
+student pushes 20-assignments/<chapter>/<assignment>/workspace/…
+   │
+   ▼
+.github/workflows/feedback.yml (course repo, copied from templates/)
+   │  checks out the student repo, and this repo (tag v1) into .feedback/
+   ▼
+scripts/run.sh, for each assignment with student work and with changes
+   1. checks   skills/<skill>/check.sh       Markdown facts, "does-not-run" lines
+   2. prompt   scripts/feedback.py prompt    one prompt from fixed parts
+   3. model    engines/<engine>.sh run       JSON answer, model has no tools
+   4. answer   scripts/feedback.py render    checks the answer, computes the
+                                             score, writes FEEDBACK.md
+   5. commit and push FEEDBACK.md
+```
+
+An invalid answer is rejected and the model is asked again (at most three
+attempts); nothing is written before an answer is valid.
+
+## Who Decides What
+
+| Part                                                                     | Decided by                                                       |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| Assignments that get feedback                                            | `scripts/has-implementation.sh`: workspace differs from template |
+| Feedback skills for the work                                             | `metadata.files` and `metadata.contains` in each `SKILL.md`      |
+| Type check, program runs, HTML validation                                | check scripts with pinned tools (`package-lock.json`)            |
+| Answers for `prompt()`, random numbers                                   | course file `.github/feedback/inputs.yml`; fixed random seed     |
+| "Does not run" (score cap 50 %)                                          | check results                                                    |
+| Prompt text and order                                                    | `scripts/feedback.py`                                            |
+| Engine, model, CLI and Node.js versions                                  | `config.yml` (always read from `main`)                           |
+| Status and comment per requirement, best practices, suggestions, summary | **the model**                                                    |
+| Score                                                                    | `scripts/feedback.py` from the statuses: ✅ 1, ⚠️ ½, ❌ 0        |
+| Layout, headings, fixed texts, time                                      | `scripts/feedback.py` and `locales/<language>.yml`               |
+
+## The Prompt
+
+Always the same parts in the same order, identical for every engine:
+
+1. [`agent/feedback-rules.md`](agent/feedback-rules.md): role, safety, how to
+   judge, tone, answer fields.
+2. Course rules: `.github/instructions/feedback-course.instructions.md` of the
+   course (students, language, conventions, chapter mapping of the skills).
+3. Feedback skills: the `SKILL.md` text of every matching skill, sorted by name.
+4. The assignment: README, the requirements checklist numbered R1…Rn, the
+   criteria numbered C1…Cm.
+5. The student's work: student commits and every file of `workspace/` (files
+   that are unchanged from the template are marked as given).
+6. The results of the automatic checks.
+7. For an update: the earlier `FEEDBACK.md` and the changes since then.
+8. The answer format.
+
+## The Answer and FEEDBACK.md
+
+The model answers with one JSON object: `requirements` (id, `met` / `partly` /
+`missing`, comment), `criteria` (id, comment), `run`, `best_practices`,
+`suggestions` (at most three), `changes` (updates only) and `summary`.
+
+`feedback.py render` rejects the answer when an id is missing or repeated, a
+status is unknown, a required text is empty, the summary contains a percentage,
+or a secret or token appears. Otherwise it computes the score (rounded half up;
+at most 50 % when a check reported "does not run") and writes the sections
+Assessment, Best Practices, Suggestions and Summary in the course language. The
+first feedback starts with `# Feedback: <title> – <time>`; an update appends
+`---` and `## Update – <time>` and never changes earlier text.
+
+## Checks Without Deno
+
+- `typescript`: `tsc` (Microsoft TypeScript), strict, like `deno check main.ts`;
+  then `node` runs the emitted JavaScript once per answer set of `inputs.yml`
+  (run 1 = the README's example run). Browser programs (`index.html`) are
+  type-checked only.
+- `html`: `index.html` exists and links a stylesheet of the workspace;
+  `html-validate` with the presets the students see in VS Code.
+
+[`skills/typescript/tools/deno-compat.mjs`](skills/typescript/tools/deno-compat.mjs)
+lets today's Deno-style programs run unchanged with Node.js: `prompt()`, the
+taught `Deno.readTextFileSync` and `Deno.writeTextFileSync`, and `jsr:` imports
+(packages pinned from npm.jsr.io). For repeatable runs it also seeds
+`Math.random()`, echoes the prepared answers and stops the program when they are
+used up.
+
+## Where Things Live
+
+| Central (this repository)                                  | Course repository (`.github/`, protected for students) |
+| ---------------------------------------------------------- | ------------------------------------------------------ |
+| `config.yml`: engine, models, versions, per-course values  | `feedback.yml`: course id and language                 |
+| `agent/feedback-rules.md`                                  | `instructions/feedback-course.instructions.md`         |
+| `skills/<skill>/`: `SKILL.md`, `check.sh`, `tools/`        | `feedback-skills/<skill>/` (optional own skills)       |
+| `locales/<language>.yml`: headings and fixed texts         | `feedback/inputs.yml`: answers for `prompt()`          |
+| `engines/`, `scripts/`, `templates/feedback.yml`, `tests/` | `workflows/feedback.yml` (copy of the template)        |
+
+## Security
+
+- **The model gets text, nothing else.** No tools, no MCP servers, no project
+  settings or instruction files, and it runs in an empty folder. Student files
+  reach it only as data inside the prompt.
+- **Student programs run in a sandbox** (`scripts/sandbox.sh`, bubblewrap): no
+  network, no environment variables, no access to the repository, the home
+  folder or the runner's temporary folder; writes only in a copy of the
+  workspace; 10 seconds per run.
+- **Secrets only where needed.** The engine sees only its own secret; checks and
+  student programs see none. A `FEEDBACK.md` with a secret value or a token is
+  rejected.
+- **Only `FEEDBACK.md` is written and committed.** The checks work on copies.
+- **Students cannot change the rules.** The organisation ruleset of HTLD-STH-SWP
+  protects `.github/`, so the workflow, the course rules and the prepared inputs
+  stay as the course defines them.
+
+## Tests
+
+[`tests/run-tests.sh`](tests/run-tests.sh) runs the whole pipeline on the small
+course in `tests/fixture/` with a fake engine and real checks: first feedback,
+update, score and cap, rejected answers, secrets, HTML.

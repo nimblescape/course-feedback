@@ -1,0 +1,28 @@
+# Texts that the script writes into FEEDBACK.md for courses with
+# `language: de` in .github/feedback.yml. The model writes everything else.
+
+# Section names in the assignment READMEs
+readme:
+  requirements: [Anforderungen]
+  criteria: [Kriterien]
+
+title: "Feedback: {title} – {time}"
+update: "Update – {time}"
+headings:
+  assessment: Bewertung
+  best_practices: Best Practices
+  suggestions: Vorschläge
+  summary: Zusammenfassung
+run: Ausgeführt
+commits: Commits in `workspace/`
+no_suggestions: Keine weiteren Vorschläge – weiter so!
+score: "Ergebnis: {score} %"
+capped: "Die Arbeit läuft noch nicht ({reasons}), daher höchstens 50 %."
+
+# Reasons of the automatic checks for "does not run"
+reasons:
+  typecheck: die Typprüfung meldet Fehler
+  crash: das Programm bricht beim Beispiellauf ab
+  timeout: das Programm endet beim Beispiellauf nicht
+  no-page: "`index.html` fehlt"
+  no-stylesheet: das Stylesheet ist nicht eingebunden

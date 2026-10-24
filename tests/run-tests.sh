@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# Local end-to-end test of scripts/run.sh with a fake engine and the small
+# course in tests/fixture/. Needs git, python3 with PyYAML, node, npm, jq and
+# bubblewrap (the checks run for real).
+#
+# Usage: tests/run-tests.sh
+
+set -uo pipefail
+
+CENTRAL=$(cd "$(dirname "$0")/.." && pwd)
+T=$(mktemp -d)
+PASSED=0
+FAILED=0
+
+expect() { # <description> <command…>
+  local description="$1"
+  shift
+  if "$@" >/dev/null 2>&1; then
+    PASSED=$((PASSED + 1))
+    echo "  ✅ $description"
+  else
+    FAILED=$((FAILED + 1))
+    echo "  ❌ $description"
+  fi
+}
+
+# Central repository with the fake engine
+mkdir -p "$T/central"
+tar -C "$CENTRAL" --exclude=./.git --exclude=./tests -cf - . | tar -C "$T/central" -xf -
+cat > "$T/central/engines/fake.sh" <<'FAKE'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$1" in
+  secrets) echo FAKE_TOKEN ;;
+  install) [ -n "${FAKE_TOKEN:-}" ] ;;
+  run) python3 "$FAKE_ENGINE" "$3" ;;
+esac
+FAKE
+chmod +x "$T/central/engines/fake.sh"
+sed -e 's/^engine: copilot/engine: fake/' -e 's/^models:/models:\n  fake: fake-model/' \
+  -e 's/^versions:/versions:\n  fake: "1"/' "$CENTRAL/config.yml" > "$T/config.yml"
+
+# Course remote (the template state) and the student's clone
+git init -q -b main "$T/template"
+tar -C "$CENTRAL/tests/fixture" -cf - . | tar -C "$T/template" -xf -
+git -C "$T/template" add -A
+git -C "$T/template" -c user.name=t -c user.email=t@t commit -qm "Initial commit"
+git clone -q --bare "$T/template" "$T/remote.git"
+git clone -q "$T/remote.git" "$T/course"
+cd "$T/course" || exit 1
+git config user.name student
+git config user.email s@s
+
+TS=20-assignments/04-input/04.01-greeting
+HTML=20-assignments/30-css-basics/30.01-card
+
+student() { # <file> <content>
+  git reset -q --hard origin/main
+  git pull -q --rebase origin main
+  printf '%s\n' "$2" > "$1"
+  git add -A && git commit -qm "student: $1" && git push -q origin HEAD:main
+}
+
+run() { # <mode> <fake mode>
+  rm -rf .feedback && cp -r "$T/central" .feedback
+  env FAKE_TOKEN=fake-secret-1234567890 COPILOT_GITHUB_TOKEN=copilot-secret GH_TOKEN=gh-secret \
+    FAKE_MODE="$2" FAKE_ENGINE="$CENTRAL/tests/fake-engine.py" FAKE_LOG="$T/prompts.log" \
+    FEEDBACK_CONFIG="$T/config.yml" RUNNER_TEMP="$T/runner" BRANCH=main \
+    BEFORE="$(git rev-parse HEAD~1)" SHA="$(git rev-parse HEAD)" \
+    bash .feedback/scripts/run.sh "$1" > "$T/run.log" 2>&1
+  echo $? > "$T/exit"
+  git fetch -q origin && git reset -q --hard origin/main
+}
+
+remote_file() { git -C "$T/remote.git" show "main:$1" 2>/dev/null; }
+contains() { remote_file "$1" | grep -qF -- "$2"; }
+count() { remote_file "$1" | grep -cF -- "$2"; }
+last_prompt() { awk 'BEGIN{RS="=====PROMPT-END=====\n"} {p=$0} END{print p}' "$T/prompts.log"; }
+exit_code() { [ "$(cat "$T/exit")" = "$1" ]; }
+
+echo "1. First feedback for working TypeScript (all met)"
+student "$TS/workspace/main.ts" 'const name = prompt("Your name?") ?? "";
+const number = Number(prompt("A number?"));
+console.log(`Hello ${name}! Twice your number is ${number * 2}.`);'
+run changed good
+expect "run succeeds" exit_code 0
+expect "title with assignment title" contains "$TS/FEEDBACK.md" "# Feedback: Greeting – "
+expect "German headings" contains "$TS/FEEDBACK.md" "## Zusammenfassung"
+expect "score 100 %" contains "$TS/FEEDBACK.md" "**Ergebnis: 100 %**"
+expect "requirement line with short text" contains "$TS/FEEDBACK.md" '- ✅ **1. Zwei `prompt()`-Aufrufe: Name, dann Zahl.** – Gut gemacht (R1).'
+expect "criteria lines" contains "$TS/FEEDBACK.md" "- **Codequalität:** Passt (C2)."
+expect "commit count" contains "$TS/FEEDBACK.md" '- **Commits in `workspace/`:** 1'
+expect "multi-line text joined" contains "$TS/FEEDBACK.md" "Template Literals verwenden."
+expect "prompt: tsc passed" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.'"
+expect "prompt: example run with answers" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Hello Mia! Twice your number is 6.'"
+expect "prompt: second run with wrong input" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Twice your number is NaN'"
+expect "prompt: typescript skill, no oop skill" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^## Skill: typescript' && ! last_prompt | grep -q '^## Skill: oop'"
+expect "prompt: no secret" bash -c "! grep -q fake-secret '$T/prompts.log'"
+
+echo "2. No change: no model run"
+before=$(grep -c PROMPT-END "$T/prompts.log")
+run changed good
+expect "no new prompt" test "$(grep -c PROMPT-END "$T/prompts.log")" = "$before"
+
+echo "3. Update with a type error: capped at 50 %"
+student "$TS/workspace/main.ts" 'const name: number = prompt("Your name?") ?? "";
+console.log(name);'
+run changed good
+expect "update section" contains "$TS/FEEDBACK.md" "## Update – "
+expect "update headings are level 3" contains "$TS/FEEDBACK.md" "### Bewertung"
+expect "changes sentence" contains "$TS/FEEDBACK.md" "Du hast den NaN-Fall ergänzt."
+expect "capped score" contains "$TS/FEEDBACK.md" "**Ergebnis: 50 %**"
+expect "cap reason" contains "$TS/FEEDBACK.md" "die Typprüfung meldet Fehler"
+expect "first feedback unchanged" contains "$TS/FEEDBACK.md" "**Ergebnis: 100 %**"
+expect "prompt: earlier feedback included" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'This is an update'"
+
+echo "4. Crash in the example run, partly met: score and cap"
+student "$TS/workspace/main.ts" 'const name = prompt("Your name?") ?? "";
+if (name === "Mia") { throw new Error("boom"); }'
+run changed partly
+expect "score from statuses (1 + ½ + 0 of 3 = 50 %)" contains "$TS/FEEDBACK.md" "**Ergebnis: 50 %**"
+expect "crash reason" contains "$TS/FEEDBACK.md" "das Programm bricht beim Beispiellauf ab"
+expect "status icons" contains "$TS/FEEDBACK.md" "- ⚠️ **1."
+expect "two update sections" test "$(count "$TS/FEEDBACK.md" "## Update – ")" = 2
+
+echo "5. Invalid answers are rejected (3 attempts), nothing is written"
+for mode in nojson wrongids percent secret; do
+  student "$TS/workspace/main.ts" "console.log(\"$mode\");"
+  run changed "$mode"
+  expect "$mode: run fails" exit_code 1
+  expect "$mode: no new update" test "$(count "$TS/FEEDBACK.md" "## Update – ")" = 2
+  expect "$mode: secret never on the remote" bash -c "! git -C '$T/remote.git' log -p --all | grep -q fake-secret"
+done
+
+echo "6. HTML: stylesheet not linked → capped; nested requirement items"
+student "$HTML/workspace/styles.css" '.card { border: 1px solid; padding: 1rem; }'
+run changed good
+expect "run succeeds" exit_code 0
+expect "headings" contains "$HTML/FEEDBACK.md" "## Bewertung"
+expect "cap reason" contains "$HTML/FEEDBACK.md" "das Stylesheet ist nicht eingebunden"
+expect "score capped" contains "$HTML/FEEDBACK.md" "**Ergebnis: 50 %**"
+expect "prompt: grouped requirement with sub-items" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^- R2 (Struktur): Die Karte ist ein'"
+expect "prompt: html and css skills" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^## Skill: css' && last_prompt | grep -q '^## Skill: html'"
+expect "prompt: html-validate ran" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'HTML-validate'"
+
+echo "7. Mode missing: nothing left without feedback"
+before=$(grep -c PROMPT-END "$T/prompts.log")
+run missing good
+expect "no new prompt" test "$(grep -c PROMPT-END "$T/prompts.log")" = "$before"
+
+echo
+echo "$PASSED passed, $FAILED failed (logs in $T)"
+[ "$FAILED" -eq 0 ]
