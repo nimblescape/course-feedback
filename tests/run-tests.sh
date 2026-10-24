@@ -169,17 +169,23 @@ env BRANCH=main bash .feedback/scripts/push.sh > "$T/push.log" 2>&1
 expect "second push: nothing to push" grep -q "No feedback to push." "$T/push.log"
 git fetch -q origin && git reset -q --hard origin/main
 
-echo "9. runtime: node: course tsconfig.json, prompt.ts import, npm packages, node:fs"
+echo "9. runtime: node: the course's package-lock.json, tsc with its tsconfig.json, tsx, ts-utils"
 git reset -q --hard origin/main
+# @majikmate/ts-utils as a git dependency, like in the courses (here a local
+# repository with the dist files of majikmate/ts-utils)
+cp -r "$CENTRAL/tests/node-course/ts-utils" "$T/ts-utils"
+git -C "$T/ts-utils" init -q -b main
+git -C "$T/ts-utils" add -A
+git -C "$T/ts-utils" -c user.name=t -c user.email=t@t commit -qm "ts-utils"
 printf 'course: test\nlanguage: de\nruntime: node\n' > .github/feedback.yml
-cp "$CENTRAL/tests/node-course/tsconfig.json" "$CENTRAL/tests/node-course/package.json" .
-cp "$CENTRAL/tests/node-course/prompt.ts" "$TS/workspace/prompt.ts"
-echo '{ "extends": "../../../../tsconfig.json" }' > "$TS/workspace/tsconfig.json"
+cp "$CENTRAL/tests/node-course/tsconfig.json" .
+sed "s#TS_UTILS#git+file://$T/ts-utils#" "$CENTRAL/tests/node-course/package.json" > package.json
+npm install --package-lock-only --ignore-scripts --no-audit --no-fund --silent > /dev/null 2>&1
 git add -A && git -c user.name=t -c user.email=t@t commit -qm "teacher: switch to Node" && git push -q origin HEAD:main
 student "$TS/workspace/main.ts" 'import { readFileSync, writeFileSync } from "node:fs";
 import { maxBy } from "es-toolkit";
 import { green } from "yoctocolors";
-import { prompt } from "./prompt.ts";
+import { prompt } from "@majikmate/ts-utils";
 
 const name = prompt("Your name?") ?? "";
 const number = Number(prompt("A number?"));
@@ -188,13 +194,15 @@ console.log(green(`Hello ${name}! Twice your number is ${readFileSync("twice.txt
 console.log(`Largest: ${maxBy([{ n: 1 }, { n: 5 }], (item) => item.n)?.n}`);'
 run changed good
 expect "run succeeds" exit_code 0
-expect "prompt: course tsconfig.json used" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF 'with the course'\''s \`tsconfig.json\`'"
+expect "course packages installed from its package-lock.json (TypeScript 6.0.3)" \
+  bash -c "grep -q '\"version\": \"6.0.3\"' '$T'/runner/feedback-tools/course-*/node_modules/typescript/package.json"
+expect "prompt: course tsconfig.json used" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF 'with the course'\''s \`tsconfig.json\`, like \`npm start\`'"
 expect "prompt: tsc passed" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.'"
-expect "prompt: prompt.ts echoes the piped answer" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Your name? Mia'"
+expect "prompt: ts-utils prompt() echoes the piped answer" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Your name? Mia'"
 expect "prompt: node:fs and yoctocolors" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Hello Mia! Twice your number is 6.'"
 expect "prompt: es-toolkit" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Largest: 5'"
 expect "prompt: second run" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Twice your number is NaN'"
-student "$TS/workspace/main.ts" 'import { prompt } from "./prompt.ts";
+student "$TS/workspace/main.ts" 'import { prompt } from "@majikmate/ts-utils";
 
 enum Mood { Happy, Sad }
 
@@ -214,32 +222,35 @@ console.log(name);'
 run changed good
 expect "missing import: type error" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q \"Cannot find name 'prompt'\""
 expect "missing import: not run, capped" contains "$TS/FEEDBACK.md" "die Typprüfung meldet Fehler"
-student "$TS/workspace/main.ts" 'import { prompt } from "./prompt.ts";
+student "$TS/workspace/main.ts" 'import { prompt } from "@majikmate/ts-utils";
 function twice(value) {
   return value * 2;
 }
 console.log(twice(Number(prompt("A number?"))));'
 run changed good
-expect "workspace tsconfig.json added by a later course commit: used, no note" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'TS7006' && ! last_prompt | grep -q 'The student changed .workspace/tsconfig.json.\|tsconfig.json. is not committed'"
+expect "root tsconfig.json strict: implicit any" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'TS7006'"
 student "$TS/workspace/tsconfig.json" '{ "extends": "../../../../tsconfig.json", "compilerOptions": { "strict": false } }'
 run changed good
-expect "student change of the workspace tsconfig.json (note)" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The student changed .workspace/tsconfig.json.: the check uses the course'"
-expect "root tsconfig.json strict: implicit any" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'TS7006'"
+expect "workspace tsconfig.json of the student ignored, like npm start" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'TS7006'"
 student "$GAME/workspace/main.ts" 'enum State { Running, Won }
 const state: State = State.Won;
 document.querySelector("#state")!.textContent = State[state];'
 run changed good
-expect "browser program: own tsconfig.json of the template (enum, DOM)" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.' && last_prompt | grep -q 'type-checked, not run'"
-student "$GAME/workspace/tsconfig.json" '{ "compilerOptions": { "strict": false } }'
+expect "browser program: DOM types, type-checked, not run" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.' && last_prompt | grep -q 'type-checked, not run'"
+student "$GAME/workspace/package.json" '{ "type": "module", "scripts": { "dev": "vite" } }'
 run changed good
-expect "student change of the template tsconfig.json: course version used" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The student changed .workspace/tsconfig.json.: the check uses the course' && last_prompt | grep -q 'No errors.'"
-student "$TS/workspace/main.ts" 'import { prompt } from "./prompt.ts";
+expect "workspace as its own npm project: not checked yet" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'its own npm project'"
+student "$TS/workspace/main.ts" 'import { prompt } from "@majikmate/ts-utils";
 while (true) {
   const answer = prompt("Again?");
   if (answer === "stop") break;
 }'
 run changed good
 expect "end of input: null, endless loop stopped" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'stopped after 10 seconds'"
+git rm -q package-lock.json && git -c user.name=t -c user.email=t@t commit -qm "teacher: no lock" && git push -q origin HEAD:main
+student "$TS/workspace/main.ts" 'console.log("no lock");'
+run changed good
+expect "no package-lock.json: no check, told" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The course has no .package-lock.json.'"
 
 echo
 echo "$PASSED passed, $FAILED failed (logs in $T)"

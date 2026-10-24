@@ -150,11 +150,13 @@ the model never see it.
    runtime: node # how students run TypeScript: node or deno (default)
    ```
 
-   With `runtime: node`, the TypeScript check uses the course's `tsconfig.json`
-   files (like `npx tsc`) and runs the program with tsx, as the students do with
-   `npx tsx main.ts`. tsx and every npm package that course programs import are
-   pinned in `skills/typescript/tools/package.json`; nothing is installed from
-   the student repository. A workspace with its own `package.json` (Vite,
+   With `runtime: node`, the TypeScript check works like the students'
+   `npm start`: it installs the course's own npm packages from its root
+   `package-lock.json` (`npm ci --ignore-scripts`, outside the checkout; git
+   dependencies such as `@majikmate/ts-utils` must be public), type-checks
+   `main.ts` and its imports with a `tsconfig.json` that extends the course's
+   root `tsconfig.json`, and runs the program with tsx. A `tsconfig.json` in the
+   workspace does not count. A workspace with its own `package.json` (Vite,
    React) is not checked yet.
 
 3. Add `.github/instructions/feedback-course.instructions.md` with the course

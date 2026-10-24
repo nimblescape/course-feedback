@@ -39,7 +39,7 @@ attempts); nothing is written before an answer is valid.
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------- |
 | Assignments that get feedback                                            | `scripts/has-implementation.sh`: workspace differs from template |
 | Feedback skills for the work                                             | `metadata.files` and `metadata.contains` in each `SKILL.md`      |
-| Type check, program runs, HTML validation                                | check scripts with pinned tools (`package-lock.json`)            |
+| Type check, program runs, HTML validation                                | check scripts; tools pinned by a `package-lock.json`             |
 | Answers for `prompt()`, random numbers                                   | course file `.github/feedback/inputs.yml`; fixed random seed     |
 | "Does not run" (score cap 50 %)                                          | check results                                                    |
 | Prompt text and order                                                    | `scripts/feedback.py`                                            |
@@ -85,13 +85,12 @@ first feedback starts with `# Feedback: <title> – <time>`; an update appends
   with `node` per answer set of `inputs.yml` (run 1 = the README's example run).
   Browser programs (`index.html`) are type-checked only. The course file
   `.github/feedback.yml` says how the students run their code:
-  - `runtime: node`: exactly as the students. `tsc` uses the course's
-    `tsconfig.json` files (like `npx tsc`), limited to the files of the
-    assignment; a student change of `workspace/tsconfig.json` is ignored. tsx
-    runs the program like `npx tsx main.ts`, with `prompt()` from the course's
-    `prompt.ts` and the `node:fs` functions. tsx and the npm packages that
-    course programs import are pinned in `skills/typescript/tools/`; nothing is
-    installed from the student repository. A workspace that is its own npm
+  - `runtime: node`: exactly as the students' `npm start`. The course's own
+    npm packages (TypeScript, tsx, `@majikmate/ts-utils`, …) are installed from
+    its root `package-lock.json` with `npm ci --ignore-scripts`, outside the
+    checkout. `tsc` checks `main.ts` and its imports with a `tsconfig.json` that
+    extends the course's root `tsconfig.json` (a workspace `tsconfig.json` does
+    not count), then tsx runs the program. A workspace that is its own npm
     project (Vite, React) is not checked yet.
   - `runtime: deno` (default, while a course still teaches Deno): `tsc` checks
     like `deno check main.ts`, and `node` runs the emitted JavaScript.
@@ -121,10 +120,11 @@ first feedback starts with `# Feedback: <title> – <time>`; an update appends
 - **The model gets text, nothing else.** No tools, no MCP servers, no project
   settings or instruction files, and it runs in an empty folder. Student files
   reach it only as data inside the prompt.
-- **Student programs run in a sandbox** (`scripts/sandbox.sh`, bubblewrap): no
-  network, no environment variables, no access to the repository, the home
-  folder or the runner's temporary folder; writes only in a copy of the
-  workspace; 10 seconds per run.
+- **Student programs and the type check run in a sandbox**
+  (`scripts/sandbox.sh`, bubblewrap): no network, no environment variables, no
+  access to the repository, the home folder or the runner's temporary folder;
+  writes only in a copy of the workspace; 10 seconds per run. npm packages are
+  installed before, without install scripts.
 - **Secrets only where needed.** The engine sees only its own secret; checks and
   student programs see none. A `FEEDBACK.md` with a secret value or a token is
   rejected.

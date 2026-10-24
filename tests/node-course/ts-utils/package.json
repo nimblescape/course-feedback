@@ -1,0 +1,13 @@
+{
+  "name": "@majikmate/ts-utils",
+  "version": "1.0.0",
+  "description": "Test copy of majikmate/ts-utils (dist only), installed as a git dependency",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

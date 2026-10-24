@@ -12,14 +12,17 @@
 # set is the README's example run).
 #
 # The course file .github/feedback.yml says how the students run their code:
-#   runtime: node            exactly as the students: `node --import tsx
-#                            main.ts`, prompt() from the course's prompt.ts,
-#                            npm packages; tsc with the course's tsconfig.json.
+#   runtime: node            exactly as the students' `npm start`: the course's
+#                            own npm packages (package-lock.json: TypeScript,
+#                            tsx, @majikmate/ts-utils, …), tsc with a tsconfig
+#                            that extends the course's root tsconfig.json, then
+#                            tsx runs main.ts.
 #   runtime: deno (default)  Deno-style programs run unchanged:
 #                            tools/deno-compat.mjs provides prompt(), the Deno
 #                            file functions that the courses teach and jsr:
 #                            imports; tsc checks like `deno check`.
-# Both make Math.random() repeatable (tools/seed-random.mjs).
+# Both make Math.random() repeatable (tools/seed-random.mjs). The type check and
+# the runs happen in the sandbox (scripts/sandbox.sh).
 
 set -uo pipefail
 
@@ -49,40 +52,41 @@ if [ -f "$workspace/package.json" ]; then
 fi
 
 tools=$(install_tools "$here/tools" typescript)
-if [ ! -x "$tools/node_modules/.bin/tsc" ]; then
-  echo "The TypeScript tools could not be installed: no automatic check."
+if [ "$runtime" = node ]; then
+  # The course's own npm packages in the exact versions of its package-lock.json
+  # (a course file), like `npm ci`, installed outside the checkout without
+  # install scripts
+  if [ ! -f package-lock.json ]; then
+    echo "The course has no \`package-lock.json\`: no automatic TypeScript check."
+    exit 0
+  fi
+  mkdir -p "$work/npm"
+  cp package.json package-lock.json "$work/npm/"
+  key=$(cat package.json package-lock.json | sha256sum | cut -c 1-16)
+  packages=$(install_tools "$work/npm" "course-$key")
+else
+  packages="$tools"
+fi
+if [ ! -f "$packages/node_modules/typescript/bin/tsc" ]; then
+  if [ "$runtime" = node ]; then
+    echo "The course's npm packages could not be installed (\`npm ci\` with its \`package-lock.json\`): no automatic check."
+  else
+    echo "The TypeScript tools could not be installed: no automatic check."
+  fi
   exit 0
 fi
-[ -f "$tools/jsr-modules.d.ts" ] || node "$tools/jsr-types.mjs"
+[ "$runtime" = node ] || [ -f "$tools/jsr-modules.d.ts" ] || node "$tools/jsr-types.mjs"
 
 cp -r "$workspace" "$copy"
 rm -rf "$copy/node_modules" "$copy/dist"
-notes=()
 if [ "$runtime" = node ]; then
-  # The course files above the workspace (protected for students): package.json
-  # and tsconfig files of every folder from the root to the assignment.
-  IFS=/ read -ra parts <<< "$assignment"
-  dir="."
-  for part in "" "${parts[@]}"; do
-    dir="$dir${part:+/$part}"
-    for file in "$dir"/package.json "$dir"/tsconfig*.json; do
-      [ -f "$file" ] && mkdir -p "$repo/$dir" && cp "$file" "$repo/$dir/"
-    done
+  # Like `npm start`: the root package.json (module type) and tsconfig.json; a
+  # tsconfig.json in the workspace does not count.
+  rm -f "$copy"/tsconfig*.json
+  for file in package.json tsconfig.json; do
+    [ ! -f "$file" ] || cp "$file" "$repo/"
   done
-  # The workspace is student-writable: its tsconfig.json counts in the version
-  # that the course added (the commit that first added it, as in
-  # scripts/has-implementation.sh), also when a template sync added it later.
-  rm -f "$copy/tsconfig.json"
-  added=$(git log --diff-filter=A --format=%H -- "$workspace/tsconfig.json" | tail -n 1)
-  if [ -n "$added" ]; then
-    git show "$added:$workspace/tsconfig.json" > "$copy/tsconfig.json"
-    git diff --quiet "$added" HEAD -- "$workspace/tsconfig.json" \
-      || notes+=("The student changed \`workspace/tsconfig.json\`: the check uses the course's version.")
-  elif [ -f "$workspace/tsconfig.json" ]; then
-    notes+=("\`workspace/tsconfig.json\` is not committed: the check ignores it.")
-  fi
-  # The pinned npm packages of the tools, never the student repository's
-  ln -s "$tools/node_modules" "$repo/node_modules"
+  ln -s "$packages/node_modules" "$repo/node_modules"
 fi
 
 # Like `deno check main.ts` or `npx tsc`: main.ts and everything it imports,
@@ -98,32 +102,20 @@ browser=false
 [ ! -f "$copy/index.html" ] || browser=true
 
 if [ "$runtime" = node ]; then
-  # The nearest course tsconfig.json from the workspace up to the root, limited
-  # to the files of this workspace.
+  # The course's root tsconfig.json, limited to the files of this workspace
   files=$(printf '%s\n' "${entries[@]}" | jq -R . | jq -s .)
-  config=""
-  dir="$copy"
-  while :; do
-    if [ -f "$dir/tsconfig.json" ]; then
-      config="$dir/tsconfig.json"
-      break
-    fi
-    [ "$dir" != "$repo" ] || break
-    dir=$(dirname "$dir")
-  done
-  if [ -n "$config" ]; then
-    base=$(jq -n --arg config "$config" '{extends: $config}')
-    heading="### Type check (\`tsc\` with the course's \`tsconfig.json\`, like \`npx tsc\`)"
+  if [ -f "$repo/tsconfig.json" ]; then
+    base=$(jq -n --arg config "$repo/tsconfig.json" '{extends: $config}')
+    heading="### Type check (\`tsc\` with the course's \`tsconfig.json\`, like \`npm start\`)"
   else
     base='{"compilerOptions": {"strict": true, "target": "ES2024", "module": "nodenext", "lib": ["ES2024"],
       "types": ["node"], "noEmit": true, "allowImportingTsExtensions": true,
       "verbatimModuleSyntax": true}}'
     heading="### Type check (\`tsc\`, strict; the course has no \`tsconfig.json\`)"
   fi
-  # The DOM types for a browser program, unless its own tsconfig.json decides
-  dom=false
-  [ "$browser" = false ] || [ "$config" = "$copy/tsconfig.json" ] || dom=true
-  jq -n --argjson base "$base" --arg types "$tools/node_modules/@types" --argjson files "$files" \
+  # The DOM types for a browser program
+  dom=$browser
+  jq -n --argjson base "$base" --arg types "$packages/node_modules/@types" --argjson files "$files" \
     --argjson dom "$dom" '$base * {
     compilerOptions: ({noEmit: true, typeRoots: [$types]}
       + (if $dom then {lib: ["ES2024", "DOM", "DOM.Iterable"]} else {} end)),
@@ -146,13 +138,11 @@ fi
 
 echo "$heading"
 echo
-for note in "${notes[@]}"; do
-  echo "$note"
-  echo
-done
-(cd "$copy" && timeout 120 "$tools/node_modules/.bin/tsc" -p "$work/tsconfig.json" --pretty false) > "$work/tsc.txt" 2>&1
+SANDBOX_CHDIR="$copy" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$work" "$tools" "$packages" -- \
+  timeout 120 node "$packages/node_modules/typescript/bin/tsc" -p "$work/tsconfig.json" --pretty false \
+  > "$work/tsc.txt" 2>&1
 status=$?
-sed -i -e "s#$copy/##g; s#$repo/##g" "$work/tsc.txt"
+sed -i -e "s#$copy/##g; s#$repo/##g; s#$packages/##g" "$work/tsc.txt"
 if [ "$status" -eq 0 ]; then
   echo "No errors."
 else
@@ -171,7 +161,7 @@ if $browser; then
 fi
 [ -f "$copy/main.ts" ] || exit 0
 if [ "$runtime" = node ]; then
-  # tsx from the pinned tools (found through node_modules next to the copy)
+  # tsx of the course (found through node_modules next to the copy)
   command=(node --import "$tools/seed-random.mjs" --import tsx main.ts)
   no_input="\`prompt()\` gets no input and returns \`null\`."
 else
@@ -212,10 +202,10 @@ for input in "${inputs[@]}"; do
     echo "Answers for \`prompt()\`, in this order: $answers"
   fi
   echo
-  SANDBOX_CHDIR="$run/repo/$workspace" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$run" "$tools" "$out" -- \
+  SANDBOX_CHDIR="$run/repo/$workspace" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$run" "$tools" "$packages" "$out" -- \
     timeout 10 "${command[@]}" < "$input" > "$work/run-$number.txt" 2>&1
   status=$?
-  sed -i -e "s#$run/repo/$workspace/##g; s#$run/repo/##g; s#$copy/##g; s#$out/##g; s#$tools/##g" \
+  sed -i -e "s#$run/repo/$workspace/##g; s#$run/repo/##g; s#$copy/##g; s#$out/##g; s#$packages/##g; s#$tools/##g" \
     -e '/^ *at .*(node:internal\//d; /^ *at node:internal\//d; /^Node\.js v[0-9]/d' "$work/run-$number.txt"
   block "$work/run-$number.txt" 80
   case "$status" in
