@@ -344,7 +344,7 @@ def answer_instructions(info, update):
 
     example = "\n".join([
         "{",
-        '  "requirements": ' + items({"id": f"R{n}", "status": "met | partly | missing", "comment": "…"}
+        '  "requirements": ' + items({"id": f"R{n}", "comment": "…", "status": "met | partly | missing"}
                                      for n in range(1, len(info["requirements"]) + 1)) + ",",
         '  "criteria": ' + items({"id": f"C{n}", "comment": "…"} for n in range(1, len(info["criteria"]) + 1)) + ",",
         '  "run": "…",',
@@ -358,7 +358,9 @@ def answer_instructions(info, update):
             "Answer with this JSON object and nothing else – no text before or after it:\n\n"
             + fenced(example, "json")
             + "\n\n- `requirements`: every id from R1 to R"
-            + f"{len(info['requirements'])} exactly once, in this order.\n"
+            + f"{len(info['requirements'])} exactly once, in this order. Write the `comment` first, then the\n"
+            + "  `status` that it supports: a comment that names something missing, wrong or against a\n"
+            + "  rule of the README means `partly` or `missing`, never `met`.\n"
             + ("- `criteria`: every id from C1 to C"
                + f"{len(info['criteria'])} exactly once.\n" if info["criteria"] else "- `criteria`: an empty list.\n")
             + ("- `changes`: required, this is an update.\n" if update else "- `changes`: an empty string.\n")

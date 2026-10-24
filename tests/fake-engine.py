@@ -15,7 +15,7 @@ requirements = re.findall(r"^- (R\d+)", prompt, re.M)
 criteria = re.findall(r"^- (C\d+):", prompt, re.M)
 update = "This is an update" in prompt
 answer = {
-    "requirements": [{"id": r, "status": "met", "comment": f"Gut gemacht ({r})."} for r in requirements],
+    "requirements": [{"id": r, "comment": f"Gut gemacht ({r}).", "status": "met"} for r in requirements],
     "criteria": [{"id": c, "comment": f"Passt ({c})."} for c in criteria],
     "run": "Der Beispiellauf passt.",
     "best_practices": [{"rating": "good", "topic": "Names", "text": "Klare Namen."},
