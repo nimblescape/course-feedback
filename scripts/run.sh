@@ -11,8 +11,10 @@
 #   all      every assignment with student work (manual run)
 #
 # Environment: BRANCH, BEFORE and SHA (mode changed), the secret of the chosen
-# engine (see engines/), FEEDBACK_CONFIG (path of the central config.yml).
-# Pushing uses the credentials that actions/checkout stored for the course.
+# engine (see engines/), FEEDBACK_CONFIG (path of the central config.yml),
+# FEEDBACK_PUSH: "now" (default) pushes each FEEDBACK.md with the credentials
+# that actions/checkout stored for the course; "later" only commits, and the
+# workflow's last step pushes with scripts/push.sh.
 #
 # Per assignment: automatic checks → prompt → model (no tools) → the answer is
 # checked → FEEDBACK.md is written by scripts/feedback.py. See ARCHITECTURE.md.
@@ -20,6 +22,7 @@
 set -euo pipefail
 
 MODE="${1:-changed}"
+PUSH="${FEEDBACK_PUSH:-now}"
 export FEEDBACK_CENTRAL=".feedback"
 export FEEDBACK_CONFIG="${FEEDBACK_CONFIG:-$FEEDBACK_CENTRAL/config.yml}"
 export FEEDBACK_REPOSITORY="$PWD"
@@ -191,9 +194,14 @@ for ASSIGNMENT in $ASSIGNMENTS; do
     continue
   fi
 
-  PUSHED=false
   git add -- "$FEEDBACK"
   git commit --quiet -m "chore: update feedback for $ASSIGNMENT"
+  if [ "$PUSH" = later ]; then
+    echo "✅ Committed feedback for $ASSIGNMENT (pushed in the last step)"
+    echo "::endgroup::"
+    continue
+  fi
+  PUSHED=false
   for ATTEMPT in 1 2 3; do
     if git -c rebase.autoStash=true pull --quiet --rebase origin "$BRANCH" && git push --quiet origin "HEAD:$BRANCH"; then
       PUSHED=true

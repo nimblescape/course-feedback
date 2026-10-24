@@ -93,6 +93,12 @@ it, a student could add a workflow that prints the organisation secrets, or
 change the course rules and the prepared inputs. Keep `.github/**/*` in that
 ruleset.
 
+Students must not change `FEEDBACK.md` either. When the ruleset protects
+`20-assignments/*/*/FEEDBACK.md`, only its bypass actors can push the file, and
+`GITHUB_TOKEN` cannot be one. The course workflow therefore pushes in its last
+step with the secret `FEEDBACK_PUSH_TOKEN` (see below); `scripts/run.sh` only
+commits (`FEEDBACK_PUSH: later`).
+
 ## Secrets in the Student Organisation (HTLD-STH-SWP)
 
 Organisation secrets, available to all student repositories (stored the same way
@@ -107,6 +113,20 @@ as `COPILOT_GITHUB_TOKEN` today):
 `FEEDBACK_CENTRAL_TOKEN` needs an organisation policy in majikmate that allows
 fine-grained personal access tokens, and possibly the approval of the token
 there. Set an expiry date and renew the token before it expires.
+
+### Push token (pushes FEEDBACK.md)
+
+Organisation secret `FEEDBACK_PUSH_TOKEN`: a fine-grained personal access token
+of an organisation admin, resource owner HTLD-STH-SWP, "All repositories" (so
+new class repositories and student forks are included), repository permission
+"Contents: Read and write" only. Pushes with it count as admin pushes, which the
+ruleset lets through. The value of `TEMPLATE_SYNC_TOKEN` also works, but it has
+more permissions than the push needs.
+
+Set the secret before the ruleset protects `FEEDBACK.md`. Without it, the
+workflow pushes with `GITHUB_TOKEN`, which works only while students may also
+change `FEEDBACK.md`. The token is passed only to the push step; the checks, the
+student programs and the model never see it. Renew the token before it expires.
 
 ## Adding a Course
 

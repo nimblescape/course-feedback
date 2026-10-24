@@ -4,6 +4,11 @@ name: Feedback
 # in the central repository majikmate/course-feedback; its config.yml decides
 # which agent engine and model run.
 #
+# Students cannot change FEEDBACK.md: the organisation ruleset lets only its
+# bypass actors push it, and GITHUB_TOKEN cannot be one. The last step
+# therefore pushes with the secret FEEDBACK_PUSH_TOKEN, a token of an
+# organisation admin; without the secret it uses GITHUB_TOKEN.
+#
 #   push      assignments whose workspace/ changed
 #   schedule  nightly safety net: student work without FEEDBACK.md
 #   manual    every assignment with student work (or the chosen mode)
@@ -85,6 +90,7 @@ jobs:
       - name: Generate feedback
         if: steps.repository.outputs.feedback
         env:
+          FEEDBACK_PUSH: later
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -101,3 +107,13 @@ jobs:
             *) mode="${INPUT_MODE:-all}" ;;
           esac
           bash .feedback/scripts/run.sh "$mode"
+
+      # Also after a failed or cancelled feedback step: finished feedback is
+      # kept. The push token exists only in this step, after the model and the
+      # student programs have finished.
+      - name: Push feedback
+        if: always() && steps.repository.outputs.feedback
+        env:
+          PUSH_TOKEN: ${{ secrets.FEEDBACK_PUSH_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+        run: bash .feedback/scripts/push.sh

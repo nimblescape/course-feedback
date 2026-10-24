@@ -65,11 +65,12 @@ run() { # <mode> <fake mode>
   rm -rf .feedback && cp -r "$T/central" .feedback
   env FAKE_TOKEN=fake-secret-1234567890 COPILOT_GITHUB_TOKEN=copilot-secret GH_TOKEN=gh-secret \
     FAKE_MODE="$2" FAKE_ENGINE="$CENTRAL/tests/fake-engine.py" FAKE_LOG="$T/prompts.log" \
-    FEEDBACK_CONFIG="$T/config.yml" RUNNER_TEMP="$T/runner" BRANCH=main \
+    FEEDBACK_CONFIG="$T/config.yml" RUNNER_TEMP="$T/runner" BRANCH=main FEEDBACK_PUSH="${PUSH:-now}" \
     BEFORE="$(git rev-parse HEAD~1)" SHA="$(git rev-parse HEAD)" \
     bash .feedback/scripts/run.sh "$1" > "$T/run.log" 2>&1
   echo $? > "$T/exit"
-  git fetch -q origin && git reset -q --hard origin/main
+  # With PUSH=later the commits stay local for scripts/push.sh
+  [ "${PUSH:-now}" = later ] || { git fetch -q origin && git reset -q --hard origin/main; }
 }
 
 remote_file() { git -C "$T/remote.git" show "main:$1" 2>/dev/null; }
@@ -147,6 +148,25 @@ echo "7. Mode missing: nothing left without feedback"
 before=$(grep -c PROMPT-END "$T/prompts.log")
 run missing good
 expect "no new prompt" test "$(grep -c PROMPT-END "$T/prompts.log")" = "$before"
+
+echo "8. FEEDBACK_PUSH=later: run.sh only commits, push.sh pushes after a student push"
+student "$TS/workspace/main.ts" 'console.log("later");'
+PUSH=later run changed good
+expect "run succeeds" exit_code 0
+expect "nothing pushed by run.sh" test "$(count "$TS/FEEDBACK.md" "## Update – ")" = 2
+git clone -q "$T/remote.git" "$T/other"
+printf 'meanwhile\n' > "$T/other/notes.txt"
+git -C "$T/other" add notes.txt
+git -C "$T/other" -c user.name=s -c user.email=s@s commit -qm "student: meanwhile"
+git -C "$T/other" push -q origin HEAD:main
+env PUSH_TOKEN=test-token BRANCH=main bash .feedback/scripts/push.sh > "$T/push.log" 2>&1
+echo $? > "$T/exit"
+expect "push succeeds" exit_code 0
+expect "feedback pushed" test "$(count "$TS/FEEDBACK.md" "## Update – ")" = 3
+expect "student commit kept" contains notes.txt meanwhile
+env BRANCH=main bash .feedback/scripts/push.sh > "$T/push.log" 2>&1
+expect "second push: nothing to push" grep -q "No feedback to push." "$T/push.log"
+git fetch -q origin && git reset -q --hard origin/main
 
 echo
 echo "$PASSED passed, $FAILED failed (logs in $T)"
