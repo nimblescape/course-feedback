@@ -6,9 +6,9 @@ name: Feedback
 #
 # Students cannot change FEEDBACK.md: the organisation ruleset lets only its
 # bypass actors push it, and GITHUB_TOKEN cannot be one. The last step
-# therefore pushes with the secret FEEDBACK_PUSH_TOKEN, a token of the feedback
-# bot account (see the README of course-feedback); without the secret it uses
-# GITHUB_TOKEN.
+# therefore pushes with the secret FEEDBACK_PUSH_TOKEN, a fine-grained token of
+# an organisation admin (see the README of course-feedback); without the secret
+# it uses GITHUB_TOKEN.
 #
 #   push      assignments whose workspace/ changed
 #   schedule  nightly safety net: student work without FEEDBACK.md
@@ -70,7 +70,8 @@ jobs:
         with:
           repository: majikmate/course-feedback
           ref: ${{ env.FEEDBACK_VERSION }}
-          token: ${{ secrets.FEEDBACK_CENTRAL_TOKEN }}
+          # FEEDBACK_CENTRAL_TOKEN: the old name of the secret, used until it is deleted
+          token: ${{ secrets.FEEDBACK_WORKFLOW_TOKEN || secrets.FEEDBACK_CENTRAL_TOKEN }}
           path: .feedback
           fetch-depth: 0 # also fetches main, for config.yml
           persist-credentials: false

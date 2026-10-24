@@ -69,16 +69,17 @@ if [ "$runtime" = node ]; then
       [ -f "$file" ] && mkdir -p "$repo/$dir" && cp "$file" "$repo/$dir/"
     done
   done
-  # The workspace is student-writable: its tsconfig.json counts only in the
-  # version of the template's first commit.
+  # The workspace is student-writable: its tsconfig.json counts in the version
+  # that the course added (the commit that first added it, as in
+  # scripts/has-implementation.sh), also when a template sync added it later.
   rm -f "$copy/tsconfig.json"
-  first=$(git rev-list --max-parents=0 HEAD | tail -n 1)
-  if git cat-file -e "$first:$workspace/tsconfig.json" 2>/dev/null; then
-    git show "$first:$workspace/tsconfig.json" > "$copy/tsconfig.json"
-    git diff --quiet "$first" HEAD -- "$workspace/tsconfig.json" \
+  added=$(git log --diff-filter=A --format=%H -- "$workspace/tsconfig.json" | tail -n 1)
+  if [ -n "$added" ]; then
+    git show "$added:$workspace/tsconfig.json" > "$copy/tsconfig.json"
+    git diff --quiet "$added" HEAD -- "$workspace/tsconfig.json" \
       || notes+=("The student changed \`workspace/tsconfig.json\`: the check uses the course's version.")
   elif [ -f "$workspace/tsconfig.json" ]; then
-    notes+=("\`workspace/tsconfig.json\` is not a file of the course: the check ignores it.")
+    notes+=("\`workspace/tsconfig.json\` is not committed: the check ignores it.")
   fi
   # The pinned npm packages of the tools, never the student repository's
   ln -s "$tools/node_modules" "$repo/node_modules"

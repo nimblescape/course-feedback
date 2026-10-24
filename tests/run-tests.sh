@@ -174,7 +174,7 @@ git reset -q --hard origin/main
 printf 'course: test\nlanguage: de\nruntime: node\n' > .github/feedback.yml
 cp "$CENTRAL/tests/node-course/tsconfig.json" "$CENTRAL/tests/node-course/package.json" .
 cp "$CENTRAL/tests/node-course/prompt.ts" "$TS/workspace/prompt.ts"
-echo '{ "extends": "../../../../tsconfig.json", "compilerOptions": { "strict": false } }' > "$TS/workspace/tsconfig.json"
+echo '{ "extends": "../../../../tsconfig.json" }' > "$TS/workspace/tsconfig.json"
 git add -A && git -c user.name=t -c user.email=t@t commit -qm "teacher: switch to Node" && git push -q origin HEAD:main
 student "$TS/workspace/main.ts" 'import { readFileSync, writeFileSync } from "node:fs";
 import { maxBy } from "es-toolkit";
@@ -220,7 +220,10 @@ function twice(value) {
 }
 console.log(twice(Number(prompt("A number?"))));'
 run changed good
-expect "student workspace tsconfig.json ignored (note)" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'is not a file of the course: the check ignores it'"
+expect "workspace tsconfig.json added by a later course commit: used, no note" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'TS7006' && ! last_prompt | grep -q 'The student changed .workspace/tsconfig.json.\|tsconfig.json. is not committed'"
+student "$TS/workspace/tsconfig.json" '{ "extends": "../../../../tsconfig.json", "compilerOptions": { "strict": false } }'
+run changed good
+expect "student change of the workspace tsconfig.json (note)" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The student changed .workspace/tsconfig.json.: the check uses the course'"
 expect "root tsconfig.json strict: implicit any" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'TS7006'"
 student "$GAME/workspace/main.ts" 'enum State { Running, Won }
 const state: State = State.Won;

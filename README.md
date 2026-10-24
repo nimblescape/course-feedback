@@ -106,36 +106,37 @@ as `COPILOT_GITHUB_TOKEN` today):
 
 | Secret                    | When                 | Content                                                                                      |
 | ------------------------- | -------------------- | -------------------------------------------------------------------------------------------- |
-| `FEEDBACK_CENTRAL_TOKEN`  | always               | Fine-grained token, owner `majikmate`, only this repository, "Contents: Read-only"           |
+| `FEEDBACK_WORKFLOW_TOKEN` | always               | Fine-grained token, owner `majikmate`, only this repository, "Contents: Read-only"           |
 | `COPILOT_GITHUB_TOKEN`    | engine `copilot`     | Token of the account whose Copilot subscription pays, with the "Copilot Requests" permission |
 | `CLAUDE_CODE_OAUTH_TOKEN` | engine `claude-code` | Output of `claude setup-token` (Claude Max plan)                                             |
 
-`FEEDBACK_CENTRAL_TOKEN` needs an organisation policy in majikmate that allows
+`FEEDBACK_WORKFLOW_TOKEN` needs an organisation policy in majikmate that allows
 fine-grained personal access tokens, and possibly the approval of the token
-there. Set an expiry date and renew the token before it expires.
+there. Set an expiry date and renew the token before it expires. Its old name
+`FEEDBACK_CENTRAL_TOKEN` is still read as a fallback until the old secret is
+deleted.
 
 ### Push token (pushes FEEDBACK.md)
 
 Organisation secret `FEEDBACK_PUSH_TOKEN`: a fine-grained personal access token
-of a bot account, resource owner HTLD-STH-SWP, "All repositories" (so new class
-repositories and student forks are included), repository permission "Contents:
-Read and write" only. The bot account needs far less than an organisation admin:
+of an organisation admin of HTLD-STH-SWP (organisation admins are bypass actors
+of the rulesets):
 
-1. A separate GitHub account, member of HTLD-STH-SWP, with the predefined
-   organisation role "All-repository write" (write access to every repository,
-   no settings, no admin).
-2. A team (for example `feedback-bot`) with only this account; rulesets accept
-   teams as bypass actors, not single users. The repository role "Write" cannot
-   be used: students have it on their forks.
-3. A small ruleset that restricts only `20-assignments/*/*/FEEDBACK.md`, with
-   this team on its bypass list. The other rulesets allow `FEEDBACK.md` and do
-   not list the bot, so the bot can change `FEEDBACK.md` and nothing else that
-   is protected.
+- Resource owner HTLD-STH-SWP, "All repositories" (so new class repositories
+  and student forks are included).
+- Repository permission "Contents: Read and write" only (GitHub adds "Metadata:
+  Read-only"). The token can push commits, but it cannot change settings,
+  rulesets, secrets, members or workflow files ("Workflows" permission
+  missing), although the account is an admin.
+- An expiry date. An expired token makes the push step fail (no fallback):
+  renew it before it expires. HTLD-STH-SWP must allow fine-grained personal
+  access tokens.
 
 Set the secret before the ruleset protects `FEEDBACK.md`. Without it, the
 workflow pushes with `GITHUB_TOKEN`, which works only while students may also
-change `FEEDBACK.md`. The token is passed only to the push step; the checks, the
-student programs and the model never see it. Renew the token before it expires.
+change `FEEDBACK.md`. The token is passed only to the push step, after the model
+and the student programs have finished; the checks, the student programs and
+the model never see it.
 
 ## Adding a Course
 

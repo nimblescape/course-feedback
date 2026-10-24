@@ -27,7 +27,7 @@ scripts/run.sh, for each assignment with student work and with changes
    │
    ▼
 last step: scripts/push.sh pushes all feedback commits with FEEDBACK_PUSH_TOKEN,
-a token of the feedback bot account (students cannot push FEEDBACK.md)
+a fine-grained token of an organisation admin (students cannot push FEEDBACK.md)
 ```
 
 An invalid answer is rejected and the model is asked again (at most three
@@ -130,9 +130,9 @@ first feedback starts with `# Feedback: <title> – <time>`; an update appends
   rejected.
 - **Only `FEEDBACK.md` is written and committed.** The checks work on copies.
 - **Students cannot change `FEEDBACK.md`.** The organisation ruleset protects
-  it; the feedback pushes with the token of a bot account on the ruleset's
-  bypass list, and only the last step gets it, after the model and the student
-  programs have finished.
+  it; the feedback pushes with a fine-grained token of an organisation admin
+  (a bypass actor; "Contents: Read and write" only), and only the last step
+  gets it, after the model and the student programs have finished.
 - **Students cannot change the rules.** The organisation ruleset of HTLD-STH-SWP
   protects `.github/`, so the workflow, the course rules and the prepared inputs
   stay as the course defines them.
