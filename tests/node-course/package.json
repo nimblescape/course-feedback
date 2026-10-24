@@ -1,5 +1,12 @@
 {
   "type": "module",
-  "dependencies": { "es-toolkit": "^1.53.0", "yoctocolors": "^2.2.0" },
-  "devDependencies": { "@types/node": "^26.0.0", "typescript": "^7.0.2" }
+  "dependencies": {
+    "es-toolkit": "^1.53.0",
+    "yoctocolors": "^2.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "typescript": "^7.0.2",
+    "tsx": "^4.23.15"
+  }
 }

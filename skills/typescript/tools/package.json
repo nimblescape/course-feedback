@@ -1,11 +1,12 @@
 {
   "private": true,
-  "description": "Tools of the TypeScript check and the npm packages that course programs import (exact versions, installed with npm ci)",
+  "description": "Tools of the TypeScript check (typescript, tsx, Node types) and the npm packages that course programs import (exact versions, installed with npm ci)",
   "dependencies": {
     "@jsr/std__collections": "1.4.0",
     "@jsr/std__fmt": "1.0.10",
     "@types/node": "26.6.5",
     "es-toolkit": "1.53.0",
+    "tsx": "4.23.15",
     "typescript": "7.0.2",
     "yoctocolors": "2.2.0"
   }

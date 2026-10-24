@@ -12,9 +12,9 @@
 # set is the README's example run).
 #
 # The course file .github/feedback.yml says how the students run their code:
-#   runtime: node            exactly as the students: `node main.ts`, prompt()
-#                            from the course's prompt.ts, npm packages; tsc
-#                            with the course's tsconfig.json.
+#   runtime: node            exactly as the students: `node --import tsx
+#                            main.ts`, prompt() from the course's prompt.ts,
+#                            npm packages; tsc with the course's tsconfig.json.
 #   runtime: deno (default)  Deno-style programs run unchanged:
 #                            tools/deno-compat.mjs provides prompt(), the Deno
 #                            file functions that the courses teach and jsr:
@@ -40,6 +40,13 @@ copy="$repo/$workspace"
 out="$work/out"
 rm -rf "$work"
 mkdir -p "$repo/$assignment" "$out"
+
+# A workspace that is its own npm project (Vite, React) needs its own
+# dependencies and scripts: not covered by this check yet.
+if [ -f "$workspace/package.json" ]; then
+  echo "The workspace is its own npm project (\`package.json\`): the automatic TypeScript check does not cover it yet."
+  exit 0
+fi
 
 tools=$(install_tools "$here/tools" typescript)
 if [ ! -x "$tools/node_modules/.bin/tsc" ]; then
@@ -109,7 +116,7 @@ if [ "$runtime" = node ]; then
   else
     base='{"compilerOptions": {"strict": true, "target": "ES2024", "module": "nodenext", "lib": ["ES2024"],
       "types": ["node"], "noEmit": true, "allowImportingTsExtensions": true,
-      "erasableSyntaxOnly": true, "verbatimModuleSyntax": true}}'
+      "verbatimModuleSyntax": true}}'
     heading="### Type check (\`tsc\`, strict; the course has no \`tsconfig.json\`)"
   fi
   # The DOM types for a browser program, unless its own tsconfig.json decides
@@ -163,7 +170,8 @@ if $browser; then
 fi
 [ -f "$copy/main.ts" ] || exit 0
 if [ "$runtime" = node ]; then
-  command=(node --disable-warning=ExperimentalWarning --import "$tools/seed-random.mjs" main.ts)
+  # tsx from the pinned tools (found through node_modules next to the copy)
+  command=(node --import "$tools/seed-random.mjs" --import tsx main.ts)
   no_input="\`prompt()\` gets no input and returns \`null\`."
 else
   echo '{ "type": "module" }' > "$out/package.json"

@@ -149,10 +149,12 @@ student programs and the model never see it. Renew the token before it expires.
    runtime: node # how students run TypeScript: node or deno (default)
    ```
 
-   With `runtime: node`, the TypeScript check uses the course's root
-   `tsconfig.json` and runs `node main.ts` as the students do. An npm package
-   that course programs import must also be pinned in
-   `skills/typescript/tools/package.json`.
+   With `runtime: node`, the TypeScript check uses the course's `tsconfig.json`
+   files (like `npx tsc`) and runs the program with tsx, as the students do with
+   `npx tsx main.ts`. tsx and every npm package that course programs import are
+   pinned in `skills/typescript/tools/package.json`; nothing is installed from
+   the student repository. A workspace with its own `package.json` (Vite,
+   React) is not checked yet.
 
 3. Add `.github/instructions/feedback-course.instructions.md` with the course
    rules: students, language and tone, README sections, what the automatic

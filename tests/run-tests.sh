@@ -194,6 +194,21 @@ expect "prompt: prompt.ts echoes the piped answer" bash -c "$(declare -f last_pr
 expect "prompt: node:fs and yoctocolors" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Hello Mia! Twice your number is 6.'"
 expect "prompt: es-toolkit" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Largest: 5'"
 expect "prompt: second run" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Twice your number is NaN'"
+student "$TS/workspace/main.ts" 'import { prompt } from "./prompt.ts";
+
+enum Mood { Happy, Sad }
+
+class Greeter {
+  constructor(private readonly name: string, private mood: Mood) {}
+
+  greet(): string {
+    return `Hello ${this.name}! (${Mood[this.mood]})`;
+  }
+}
+
+console.log(new Greeter(prompt("Your name?") ?? "", Mood.Happy).greet());'
+run changed good
+expect "tsx: enum and parameter properties run" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Hello Mia! (Happy)'"
 student "$TS/workspace/main.ts" 'const name: string = prompt("Your name?") ?? "";
 console.log(name);'
 run changed good

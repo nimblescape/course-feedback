@@ -85,12 +85,14 @@ first feedback starts with `# Feedback: <title> – <time>`; an update appends
   with `node` per answer set of `inputs.yml` (run 1 = the README's example run).
   Browser programs (`index.html`) are type-checked only. The course file
   `.github/feedback.yml` says how the students run their code:
-  - `runtime: node`: exactly as the students. `tsc` uses the course's root
-    `tsconfig.json`, limited to the files of the assignment; `node main.ts` runs
-    the program, with `prompt()` from the course's `prompt.ts` and the `node:fs`
-    functions. The npm packages that course programs import are pinned in
-    `skills/typescript/tools/`; nothing is installed from the student
-    repository.
+  - `runtime: node`: exactly as the students. `tsc` uses the course's
+    `tsconfig.json` files (like `npx tsc`), limited to the files of the
+    assignment; a student change of `workspace/tsconfig.json` is ignored. tsx
+    runs the program like `npx tsx main.ts`, with `prompt()` from the course's
+    `prompt.ts` and the `node:fs` functions. tsx and the npm packages that
+    course programs import are pinned in `skills/typescript/tools/`; nothing is
+    installed from the student repository. A workspace that is its own npm
+    project (Vite, React) is not checked yet.
   - `runtime: deno` (default, while a course still teaches Deno): `tsc` checks
     like `deno check main.ts`, and `node` runs the emitted JavaScript.
     [`deno-compat.mjs`](skills/typescript/tools/deno-compat.mjs) provides
