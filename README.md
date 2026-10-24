@@ -93,6 +93,12 @@ it, a student could add a workflow that prints the organisation secrets, or
 change the course rules and the prepared inputs. Keep `.github/**/*` in that
 ruleset.
 
+Students must not change `FEEDBACK.md` either. When the ruleset protects
+`20-assignments/*/*/FEEDBACK.md`, only its bypass actors can push the file, and
+`GITHUB_TOKEN` cannot be one. The course workflow therefore pushes in its last
+step with a token of the feedback GitHub App (see below); `scripts/run.sh` only
+commits (`FEEDBACK_PUSH: later`).
+
 ## Secrets in the Student Organisation (HTLD-STH-SWP)
 
 Organisation secrets, available to all student repositories (stored the same way
@@ -107,6 +113,23 @@ as `COPILOT_GITHUB_TOKEN` today):
 `FEEDBACK_CENTRAL_TOKEN` needs an organisation policy in majikmate that allows
 fine-grained personal access tokens, and possibly the approval of the token
 there. Set an expiry date and renew the token before it expires.
+
+### Feedback GitHub App (pushes FEEDBACK.md)
+
+1. In HTLD-STH-SWP: Settings → Developer settings → GitHub Apps → New GitHub
+   App. Webhook off; repository permission "Contents: Read and write"; only on
+   this account.
+2. Generate a private key and install the app on all repositories of the
+   organisation.
+3. Organisation variable `FEEDBACK_APP_CLIENT_ID`: the app's Client ID.
+   Organisation secret `FEEDBACK_APP_PRIVATE_KEY`: the content of the private
+   key file.
+4. Add the app to the bypass list of the ruleset that protects `FEEDBACK.md`.
+
+Do this before the ruleset protects `FEEDBACK.md`. Without the variable, the
+workflow pushes with `GITHUB_TOKEN`, which works only while students may also
+change `FEEDBACK.md`. Each run creates a new token for the current repository,
+valid for one hour, only in the push step.
 
 ## Adding a Course
 

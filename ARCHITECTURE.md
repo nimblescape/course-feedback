@@ -23,7 +23,11 @@ scripts/run.sh, for each assignment with student work and with changes
    3. model    engines/<engine>.sh run       JSON answer, model has no tools
    4. answer   scripts/feedback.py render    checks the answer, computes the
                                              score, writes FEEDBACK.md
-   5. commit and push FEEDBACK.md
+   5. commit   one commit per FEEDBACK.md
+   │
+   ▼
+last step: scripts/push.sh pushes all feedback commits with a token of the
+feedback GitHub App (students cannot push FEEDBACK.md)
 ```
 
 An invalid answer is rejected and the model is asked again (at most three
@@ -114,6 +118,9 @@ used up.
   student programs see none. A `FEEDBACK.md` with a secret value or a token is
   rejected.
 - **Only `FEEDBACK.md` is written and committed.** The checks work on copies.
+- **Students cannot change `FEEDBACK.md`.** The organisation ruleset protects
+  it; the feedback pushes with a GitHub App token that is created only for the
+  last step, after the model and the student programs have finished.
 - **Students cannot change the rules.** The organisation ruleset of HTLD-STH-SWP
   protects `.github/`, so the workflow, the course rules and the prepared inputs
   stay as the course defines them.
