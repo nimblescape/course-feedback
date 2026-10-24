@@ -1,15 +1,22 @@
 ---
-applyTo: "**/FEEDBACK.md"
+name: oop
+description: >-
+  Feedback rules for object-oriented TypeScript: classes and objects,
+  encapsulation, relationships, inheritance, polymorphism, interfaces, generics
+  and class diagrams. Used for every work with a class or an interface, in code
+  or in a PlantUML class diagram.
+metadata:
+  files: "*.ts *.mts *.tsx *.md"
+  contains: '^\s*(export\s+)?(default\s+)?(abstract\s+)?(class|interface)\s+[A-Z]'
 ---
 
 # Best Practices – Object-Oriented Programming in TypeScript
 
-<!-- Module "oop" of majikmate/course-feedback, copied into the course as
-best-practices-oop.instructions.md. No chapter numbers here: the course file
-says from which chapter a topic applies. Explain a rule only when its topic has
-been taught. -->
+<!-- Feedback skill of majikmate/course-feedback. No chapter numbers here:
+the course rules say from which chapter a topic applies. Explain a rule
+only when its topic has been taught. -->
 
-This module describes the long, explicit form. Where the course file accepts
+This skill describes the long, explicit form. Where the course rules accept
 TypeScript shorthands – parameter properties, `get`/`set` accessors, `#private`
 fields – they are equally correct.
 

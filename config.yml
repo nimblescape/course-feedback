@@ -13,11 +13,20 @@ enabled: true
 # Max plan of the CLAUDE_CODE_OAUTH_TOKEN secret.
 engine: copilot
 
-# Model per engine, named as the engine knows it. A mid-tier model is enough:
-# the scripts do the mechanical work and the model only judges and writes.
+# Model per engine, with its exact name as the engine knows it (no alias such
+# as `sonnet`, which changes when a new model comes out). A mid-tier model is
+# enough: the scripts do all mechanical work and the model only judges.
 models:
   copilot: claude-sonnet-5.5
-  claude-code: sonnet
+  claude-code: claude-sonnet-5-5
+
+# Exact versions of the engine CLIs and of Node.js, so that every run uses the
+# same tools. The tools of the automatic checks (TypeScript, html-validate) are
+# pinned in the package-lock.json files next to the check scripts in skills/.
+versions:
+  node: "24" # major version
+  copilot: 1.0.103
+  claude-code: 2.1.310
 
 # At most this many assignments get feedback in one run; the others are skipped
 # in that run (the nightly run catches assignments without feedback).

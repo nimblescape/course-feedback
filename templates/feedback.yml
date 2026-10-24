@@ -70,15 +70,17 @@ jobs:
           persist-credentials: false
 
       - name: Read central config
+        id: config
         if: steps.repository.outputs.feedback
         run: |
           git -C .feedback show origin/main:config.yml > "$RUNNER_TEMP/config.yml"
+          echo "node=$(yq '.versions.node' "$RUNNER_TEMP/config.yml")" >> "$GITHUB_OUTPUT"
 
-      - name: Install Deno
+      - name: Install Node.js
         if: steps.repository.outputs.feedback
-        uses: denoland/setup-deno@v2
+        uses: actions/setup-node@v6
         with:
-          deno-version: v2.x
+          node-version: ${{ steps.config.outputs.node }}
 
       - name: Generate feedback
         if: steps.repository.outputs.feedback

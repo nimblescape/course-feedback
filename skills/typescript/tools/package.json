@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "description": "Tools of the TypeScript check (exact versions, installed with npm ci)",
+  "dependencies": {
+    "@jsr/std__collections": "1.4.0",
+    "@jsr/std__fmt": "1.0.10",
+    "typescript": "7.0.2"
+  }
+}

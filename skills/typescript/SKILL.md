@@ -1,13 +1,18 @@
 ---
-applyTo: "**/FEEDBACK.md"
+name: typescript
+description: >-
+  Feedback rules for TypeScript code: names, const and let, output, decisions,
+  input, loops, arrays, objects, JSON, modules, functions and structure. Used
+  for every work with .ts files.
+metadata:
+  files: "*.ts *.tsx *.mts"
 ---
 
 # Best Practices – TypeScript
 
-<!-- Module "typescript" of majikmate/course-feedback, copied into the course as
-best-practices-typescript.instructions.md. No chapter numbers here: the course file
-says from which chapter a topic applies. Explain a rule only when its topic has
-been taught. -->
+<!-- Feedback skill of majikmate/course-feedback. No chapter numbers here:
+the course rules say from which chapter a topic applies. Explain a rule
+only when its topic has been taught. -->
 
 ## Variables and Names
 
@@ -122,4 +127,4 @@ been taught. -->
 - Short comments only where the code cannot explain itself; no commented-out
   code.
 - Prettier formatting (the editor formats on save); the Problems panel shows no
-  errors – `deno check` passes.
+  errors – the type check passes.

@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # Engine: GitHub Copilot CLI. Billed through the Copilot account of the token.
 #
-# Usage: copilot.sh secrets   (names of the secrets this engine needs)
-#        copilot.sh install
-#        copilot.sh run <model> <prompt-file>
+# Usage: copilot.sh secrets                    names of the secrets it needs
+#        copilot.sh install <version>          CLI version from config.yml
+#        copilot.sh run <model> <prompt-file>  prints the model's answer
 #
 # Needs the secret COPILOT_GITHUB_TOKEN (a token with Copilot access).
+#
+# The model gets the prompt and nothing else: no tools (it cannot run commands
+# or read files), no MCP servers, no custom instructions, and it runs in an
+# empty folder, so nothing from the student repository reaches it.
 
 set -euo pipefail
 
@@ -14,38 +18,31 @@ case "${1:-}" in
     echo COPILOT_GITHUB_TOKEN
     ;;
   install)
+    version="$2"
     if [ -z "${COPILOT_GITHUB_TOKEN:-}" ]; then
       echo "::error::The engine 'copilot' needs the secret COPILOT_GITHUB_TOKEN."
       exit 1
     fi
-    command -v copilot >/dev/null 2>&1 || curl -fsSL https://gh.io/copilot-install | sudo bash
+    if [ "$(copilot --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)" != "$version" ]; then
+      npm install --global --silent "@github/copilot@$version"
+    fi
+    copilot --version | head -n 1
     ;;
   run)
     model="$2"
-    prompt_file="$3"
-    # The agent is found by name in .github/agents/Feedback.agent.md.
-    # --secret-env-vars removes the token from every command the agent runs, so
-    # a student program cannot read it. No URL is allowed (no --allow-all-urls),
-    # and the deny rules win over --allow-all-tools. --no-custom-instructions
-    # skips AGENTS.md, CLAUDE.md and similar files, which students can write;
-    # the agent reads its instruction files itself.
+    prompt_file="$(realpath "$3")"
+    cd "$(mktemp -d)"
     copilot \
-      --agent=Feedback \
-      --no-custom-instructions \
       --model "$model" \
-      --prompt "$(cat "$prompt_file")" \
-      --allow-all-tools \
-      --allow-all-paths \
-      --secret-env-vars=COPILOT_GITHUB_TOKEN \
-      --excluded-tools=web_fetch \
-      --deny-tool='shell(deno task:*)' \
-      --deny-tool='shell(npm:*)' \
-      --deny-tool='shell(npx:*)' \
-      --deny-tool='shell(curl:*)' \
-      --deny-tool='shell(wget:*)'
+      --available-tools=none \
+      --disable-builtin-mcps \
+      --no-custom-instructions \
+      --no-color \
+      --silent \
+      < "$prompt_file"
     ;;
   *)
-    echo "Usage: $0 secrets | install | run <model> <prompt-file>" >&2
+    echo "Usage: $0 secrets | install <version> | run <model> <prompt-file>" >&2
     exit 2
     ;;
 esac

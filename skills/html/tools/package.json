@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "Tools of the HTML check (exact versions, installed with npm ci)",
+  "dependencies": {
+    "html-validate": "11.17.0"
+  }
+}
