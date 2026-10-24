@@ -69,6 +69,9 @@ Rules:
 ## Statuses and Score
 
 Each requirement gets one status: `met` (✅), `partly` (⚠️) or `missing` (❌).
+The status agrees with its comment: when the comment names something that is
+missing, wrong or against a rule of the README, the status is `partly` or
+`missing`, never `met`.
 The script computes the score from them: met 1 point, partly ½, missing 0,
 divided by the number of requirements. The script also limits the score to 50 %
 when the automatic checks show that the work does not run. Never write a score
