@@ -1,0 +1,101 @@
+name: Feedback
+
+# Creates or updates the FEEDBACK.md files of the assignments. All logic lives
+# in the central repository majikmate/course-feedback; its config.yml decides
+# which agent engine and model run.
+#
+#   push      assignments whose workspace/ changed
+#   schedule  nightly safety net: student work without FEEDBACK.md
+#   manual    every assignment with student work (or the chosen mode)
+on:
+  push:
+    branches-ignore:
+      - "sync-from-template-*"
+      - "sync-from-*"
+    paths:
+      - "20-assignments/**/workspace/**"
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "changed, missing or all"
+        default: all
+        type: choice
+        options: [all, missing, changed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: feedback-${{ github.repository }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  # Version of the central scripts and rules; config.yml is always read from main
+  FEEDBACK_VERSION: v1
+
+jobs:
+  feedback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      # Templates contain no student work: they only pass their files on to the starters
+      - name: Skip templates
+        id: repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(gh api "repos/${GITHUB_REPOSITORY}" --jq .is_template)" = true ]; then
+            echo "Templates get no feedback."
+            exit 0
+          fi
+          echo "feedback=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout course
+        if: steps.repository.outputs.feedback
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Checkout central feedback scripts
+        if: steps.repository.outputs.feedback
+        uses: actions/checkout@v7
+        with:
+          repository: majikmate/course-feedback
+          ref: ${{ env.FEEDBACK_VERSION }}
+          token: ${{ secrets.FEEDBACK_CENTRAL_TOKEN }}
+          path: .feedback
+          fetch-depth: 0 # also fetches main, for config.yml
+          persist-credentials: false
+
+      - name: Read central config
+        if: steps.repository.outputs.feedback
+        run: |
+          git -C .feedback show origin/main:config.yml > "$RUNNER_TEMP/config.yml"
+
+      - name: Install Deno
+        if: steps.repository.outputs.feedback
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Generate feedback
+        if: steps.repository.outputs.feedback
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FEEDBACK_CONFIG: ${{ runner.temp }}/config.yml
+          BRANCH: ${{ github.ref_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+          INPUT_MODE: ${{ inputs.mode }}
+        run: |
+          case "$EVENT" in
+            push) mode=changed ;;
+            schedule) mode=missing ;;
+            *) mode="${INPUT_MODE:-all}" ;;
+          esac
+          bash .feedback/scripts/run.sh "$mode"
