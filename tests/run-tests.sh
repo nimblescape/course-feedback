@@ -53,6 +53,7 @@ git config user.email s@s
 
 TS=20-assignments/04-input/04.01-greeting
 HTML=20-assignments/30-css-basics/30.01-card
+GAME=20-assignments/15-project/15.01-game
 
 student() { # <file> <content>
   git reset -q --hard origin/main
@@ -198,6 +199,22 @@ console.log(name);'
 run changed good
 expect "missing import: type error" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q \"Cannot find name 'prompt'\""
 expect "missing import: not run, capped" contains "$TS/FEEDBACK.md" "die Typprüfung meldet Fehler"
+student "$TS/workspace/main.ts" 'import { prompt } from "./prompt.ts";
+function twice(value) {
+  return value * 2;
+}
+console.log(twice(Number(prompt("A number?"))));'
+run changed good
+expect "student workspace tsconfig.json ignored (note)" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'is not a file of the course: the check ignores it'"
+expect "root tsconfig.json strict: implicit any" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'TS7006'"
+student "$GAME/workspace/main.ts" 'enum State { Running, Won }
+const state: State = State.Won;
+document.querySelector("#state")!.textContent = State[state];'
+run changed good
+expect "browser program: own tsconfig.json of the template (enum, DOM)" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.' && last_prompt | grep -q 'type-checked, not run'"
+student "$GAME/workspace/tsconfig.json" '{ "compilerOptions": { "strict": false } }'
+run changed good
+expect "student change of the template tsconfig.json: course version used" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The student changed .workspace/tsconfig.json.: the check uses the course' && last_prompt | grep -q 'No errors.'"
 student "$TS/workspace/main.ts" 'import { prompt } from "./prompt.ts";
 while (true) {
   const answer = prompt("Again?");

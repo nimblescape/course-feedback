@@ -4,7 +4,7 @@
 # answers for prompt(). Prints Markdown facts for the prompt (see
 # scripts/check-lib.sh).
 #
-# Usage: check.sh <assignment-path>
+# Usage: check.sh <assignment-path>   (relative to the course repository)
 #
 # Environment: FEEDBACK_CENTRAL, FEEDBACK_REPOSITORY, FEEDBACK_TOOLS,
 # FEEDBACK_STATUS, FEEDBACK_WORK (temporary folder of this assignment),
@@ -12,13 +12,13 @@
 # set is the README's example run).
 #
 # The course file .github/feedback.yml says how the students run their code:
+#   runtime: node            exactly as the students: `node main.ts`, prompt()
+#                            from the course's prompt.ts, npm packages; tsc
+#                            with the course's tsconfig.json.
 #   runtime: deno (default)  Deno-style programs run unchanged:
 #                            tools/deno-compat.mjs provides prompt(), the Deno
 #                            file functions that the courses teach and jsr:
 #                            imports; tsc checks like `deno check`.
-#   runtime: node            exactly as the students: `node main.ts`, prompt()
-#                            from the course's prompt.ts, npm packages; tsc
-#                            with the course's root tsconfig.json.
 # Both make Math.random() repeatable (tools/seed-random.mjs).
 
 set -uo pipefail
@@ -29,13 +29,17 @@ source "$FEEDBACK_CENTRAL/scripts/check-lib.sh"
 
 runtime=$(python3 "$FEEDBACK_CENTRAL/scripts/feedback.py" course runtime)
 runtime="${runtime:-deno}"
-repository="${FEEDBACK_REPOSITORY:-$PWD}"
-workspace="$1/workspace"
+assignment="${1%/}"
+workspace="$assignment/workspace"
 work="$FEEDBACK_WORK/typescript"
-copy="$work/workspace"
+# The checks work on a copy with the layout of the course repository, so that
+# relative paths in tsconfig.json files work. They never change the checkout,
+# and every run starts with the same files.
+repo="$work/repo"
+copy="$repo/$workspace"
 out="$work/out"
 rm -rf "$work"
-mkdir -p "$work" "$out"
+mkdir -p "$repo/$assignment" "$out"
 
 tools=$(install_tools "$here/tools" typescript)
 if [ ! -x "$tools/node_modules/.bin/tsc" ]; then
@@ -44,17 +48,33 @@ if [ ! -x "$tools/node_modules/.bin/tsc" ]; then
 fi
 [ -f "$tools/jsr-modules.d.ts" ] || node "$tools/jsr-types.mjs"
 
-# The checks work on a copy: they never change the checkout, and every run
-# starts with the same files. Next to the copy, as in the course repository:
-# the module type of the root package.json and the npm packages (the pinned
-# ones of the tools, never the student repository's).
 cp -r "$workspace" "$copy"
 rm -rf "$copy/node_modules" "$copy/dist"
+notes=()
 if [ "$runtime" = node ]; then
-  if [ -f "$repository/package.json" ]; then
-    jq -c '{type: (.type // "commonjs")}' "$repository/package.json" > "$work/package.json"
+  # The course files above the workspace (protected for students): package.json
+  # and tsconfig files of every folder from the root to the assignment.
+  IFS=/ read -ra parts <<< "$assignment"
+  dir="."
+  for part in "" "${parts[@]}"; do
+    dir="$dir${part:+/$part}"
+    for file in "$dir"/package.json "$dir"/tsconfig*.json; do
+      [ -f "$file" ] && mkdir -p "$repo/$dir" && cp "$file" "$repo/$dir/"
+    done
+  done
+  # The workspace is student-writable: its tsconfig.json counts only in the
+  # version of the template's first commit.
+  rm -f "$copy/tsconfig.json"
+  first=$(git rev-list --max-parents=0 HEAD | tail -n 1)
+  if git cat-file -e "$first:$workspace/tsconfig.json" 2>/dev/null; then
+    git show "$first:$workspace/tsconfig.json" > "$copy/tsconfig.json"
+    git diff --quiet "$first" HEAD -- "$workspace/tsconfig.json" \
+      || notes+=("The student changed \`workspace/tsconfig.json\`: the check uses the course's version.")
+  elif [ -f "$workspace/tsconfig.json" ]; then
+    notes+=("\`workspace/tsconfig.json\` is not a file of the course: the check ignores it.")
   fi
-  ln -s "$tools/node_modules" "$work/node_modules"
+  # The pinned npm packages of the tools, never the student repository's
+  ln -s "$tools/node_modules" "$repo/node_modules"
 fi
 
 # Like `deno check main.ts` or `npx tsc`: main.ts and everything it imports,
@@ -70,12 +90,21 @@ browser=false
 [ ! -f "$copy/index.html" ] || browser=true
 
 if [ "$runtime" = node ]; then
-  # The course's root tsconfig.json, limited to the files of this workspace
-  # (a tsconfig.json in the workspace is student-writable and ignored).
+  # The nearest course tsconfig.json from the workspace up to the root, limited
+  # to the files of this workspace.
   files=$(printf '%s\n' "${entries[@]}" | jq -R . | jq -s .)
-  root="$repository/tsconfig.json"
-  if [ -f "$root" ]; then
-    base=$(jq -n --arg root "$root" '{extends: $root}')
+  config=""
+  dir="$copy"
+  while :; do
+    if [ -f "$dir/tsconfig.json" ]; then
+      config="$dir/tsconfig.json"
+      break
+    fi
+    [ "$dir" != "$repo" ] || break
+    dir=$(dirname "$dir")
+  done
+  if [ -n "$config" ]; then
+    base=$(jq -n --arg config "$config" '{extends: $config}')
     heading="### Type check (\`tsc\` with the course's \`tsconfig.json\`, like \`npx tsc\`)"
   else
     base='{"compilerOptions": {"strict": true, "target": "ES2024", "module": "nodenext", "lib": ["ES2024"],
@@ -83,10 +112,13 @@ if [ "$runtime" = node ]; then
       "erasableSyntaxOnly": true, "verbatimModuleSyntax": true}}'
     heading="### Type check (\`tsc\`, strict; the course has no \`tsconfig.json\`)"
   fi
+  # The DOM types for a browser program, unless its own tsconfig.json decides
+  dom=false
+  [ "$browser" = false ] || [ "$config" = "$copy/tsconfig.json" ] || dom=true
   jq -n --argjson base "$base" --arg types "$tools/node_modules/@types" --argjson files "$files" \
-    --argjson browser "$browser" '$base * {
+    --argjson dom "$dom" '$base * {
     compilerOptions: ({noEmit: true, typeRoots: [$types]}
-      + (if $browser then {lib: ["ES2024", "DOM", "DOM.Iterable"]} else {} end)),
+      + (if $dom then {lib: ["ES2024", "DOM", "DOM.Iterable"]} else {} end)),
     files: $files, include: []
   }' > "$work/tsconfig.json"
 else
@@ -106,9 +138,13 @@ fi
 
 echo "$heading"
 echo
+for note in "${notes[@]}"; do
+  echo "$note"
+  echo
+done
 (cd "$copy" && timeout 120 "$tools/node_modules/.bin/tsc" -p "$work/tsconfig.json" --pretty false) > "$work/tsc.txt" 2>&1
 status=$?
-sed -i "s#$copy/##g" "$work/tsc.txt"
+sed -i -e "s#$copy/##g; s#$repo/##g" "$work/tsc.txt"
 if [ "$status" -eq 0 ]; then
   echo "No errors."
 else
@@ -150,14 +186,10 @@ fi
 number=0
 for input in "${inputs[@]}"; do
   number=$((number + 1))
-  # The same layout as for the type check, in a fresh folder for every run
+  # A fresh copy of the repository layout for every run, started in the workspace
   run="$work/run-$number"
   mkdir -p "$run"
-  cp -r "$copy" "$run/workspace"
-  if [ "$runtime" = node ]; then
-    cp -a "$work/node_modules" "$run/"
-    [ ! -f "$work/package.json" ] || cp "$work/package.json" "$run/"
-  fi
+  cp -a "$repo" "$run/repo"
   if [ "$input" = /dev/null ]; then
     echo "### Run of \`main.ts\`"
   else
@@ -171,10 +203,10 @@ for input in "${inputs[@]}"; do
     echo "Answers for \`prompt()\`, in this order: $answers"
   fi
   echo
-  SANDBOX_CHDIR="$run/workspace" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$run" "$tools" "$out" -- \
+  SANDBOX_CHDIR="$run/repo/$workspace" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$run" "$tools" "$out" -- \
     timeout 10 "${command[@]}" < "$input" > "$work/run-$number.txt" 2>&1
   status=$?
-  sed -i -e "s#$run/workspace/##g; s#$run/##g; s#$copy/##g; s#$out/##g; s#$tools/##g" \
+  sed -i -e "s#$run/repo/$workspace/##g; s#$run/repo/##g; s#$copy/##g; s#$out/##g; s#$tools/##g" \
     -e '/^ *at .*(node:internal\//d; /^ *at node:internal\//d; /^Node\.js v[0-9]/d' "$work/run-$number.txt"
   block "$work/run-$number.txt" 80
   case "$status" in
