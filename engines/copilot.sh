@@ -26,9 +26,12 @@ case "${1:-}" in
     # The agent is found by name in .github/agents/Feedback.agent.md.
     # --secret-env-vars removes the token from every command the agent runs, so
     # a student program cannot read it. No URL is allowed (no --allow-all-urls),
-    # and the deny rules win over --allow-all-tools.
+    # and the deny rules win over --allow-all-tools. --no-custom-instructions
+    # skips AGENTS.md, CLAUDE.md and similar files, which students can write;
+    # the agent reads its instruction files itself.
     copilot \
       --agent=Feedback \
+      --no-custom-instructions \
       --model "$model" \
       --prompt "$(cat "$prompt_file")" \
       --allow-all-tools \

@@ -107,6 +107,15 @@ and the repository safe:
 - **Few tools for the agent.** No web access; `deno task`, `npm`, `npx`, `curl`
   and `wget` are denied. Claude Code may only edit `FEEDBACK.md` files and run
   the listed commands.
+- **No agent configuration from students.** The ruleset leaves root files and
+  folders such as `.claude/` and `.agents/` writable. The engines would read
+  them: Copilot loads `AGENTS.md`, `CLAUDE.md` and skills from `.claude/skills/`
+  and `.agents/skills/`; Claude Code applies `.claude/settings.json`, whose
+  `env` can send the token to another server. `run.sh` removes `AGENTS.md`,
+  `CLAUDE.md`, `GEMINI.md`, `.mcp.json`, `.claude/`, `.agents/`, `.copilot/`
+  and `.gemini/` from the worktree before every engine run (never committed).
+  In addition, Copilot runs with `--no-custom-instructions` and Claude Code
+  with `--setting-sources user --strict-mcp-config`.
 - **Result checks.** Only `FEEDBACK.md` is committed; every other change is
   reset. A `FEEDBACK.md` that contains a secret value is rejected.
 - **No stored central token.** The central repository is checked out with

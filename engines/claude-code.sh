@@ -40,8 +40,13 @@ case "${1:-}" in
     # agent runs, so a student program cannot read it. With the scrub, Claude
     # Code ignores --dangerously-skip-permissions: the allowed tools are listed,
     # everything else is denied. Edit rules also cover creating files.
+    # --setting-sources user ignores .claude/settings.json, CLAUDE.md and
+    # skills of the repository: students can write them, and a settings file
+    # could send the token to another server (env ANTHROPIC_BASE_URL).
     CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 claude \
       --print \
+      --setting-sources user \
+      --strict-mcp-config \
       --model "$model" \
       --append-system-prompt "$agent" \
       --allowedTools \

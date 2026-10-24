@@ -117,9 +117,21 @@ echo "$ASSIGNMENTS" | sed 's/^/- /'
 
 # --- Agent files ------------------------------------------------------------
 
+# Agent configuration outside .github/ is writable for students (root files,
+# .claude/, .agents/). The engines would read it as instructions, skills or
+# settings, so it is removed from the worktree before every engine run. It is
+# never committed; git reset brings it back.
+remove_student_agent_config() {
+  find . -path ./.git -prune -o -path "./$CENTRAL" -prune -o \
+    \( -name .claude -o -name .agents -o -name .copilot -o -name .gemini -o -name .mcp.json \
+    -o -name AGENTS.md -o -name CLAUDE.md -o -name CLAUDE.local.md -o -name GEMINI.md \) \
+    -prune -exec rm -rf {} +
+}
+
 # The central agent and rules are copied into the course checkout, where the
 # engines expect them. They are never committed.
 install_agent_files() {
+  remove_student_agent_config
   mkdir -p .github/agents .github/instructions
   cp "$CENTRAL/agent/Feedback.agent.md" .github/agents/Feedback.agent.md
   cp "$CENTRAL/agent/feedback-format.instructions.md" .github/instructions/
