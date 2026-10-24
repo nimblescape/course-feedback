@@ -54,6 +54,7 @@ git config user.email s@s
 TS=20-assignments/04-input/04.01-greeting
 HTML=20-assignments/30-css-basics/30.01-card
 GAME=20-assignments/15-project/15.01-game
+PROJECT=20-assignments/15-project/15.02-vite-game
 
 student() { # <file> <content>
   git reset -q --hard origin/main
@@ -237,9 +238,43 @@ const state: State = State.Won;
 document.querySelector("#state")!.textContent = State[state];'
 run changed good
 expect "browser program: DOM types, type-checked, not run" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.' && last_prompt | grep -q 'type-checked, not run'"
-student "$GAME/workspace/package.json" '{ "type": "module", "scripts": { "dev": "vite" } }'
+student "$GAME/workspace/package.json" '{ "type": "module", "scripts": { "check": "echo ok" } }'
 run changed good
-expect "workspace as its own npm project: not checked yet" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'its own npm project'"
+expect "package.json added by the student: ignored (note), normal check" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'workspace/package.json. is not a file of the course' && last_prompt | grep -q 'type-checked, not run'"
+student "$PROJECT/workspace/main.ts" 'class Score {
+  private points = 0;
+
+  add(points: number): void {
+    this.points += points;
+  }
+
+  getPoints(): number {
+    return this.points;
+  }
+}
+
+const score = new Score();
+score.add(3);
+document.querySelector("#score")!.textContent = `${score.getPoints()}`;'
+run changed good
+expect "own npm project of the course: npm run check, no errors" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF '(\`npm run check\` of the project: \`tsc --noEmit\`)' && last_prompt | grep -q 'No errors.' && last_prompt | grep -q 'checked with .npm run check., not run'"
+expect "own npm project: its lock file installed (TypeScript 6.0.3)" \
+  bash -c "grep -q '\"version\": \"6.0.3\"' '$T'/runner/feedback-tools/project-*/node_modules/typescript/package.json"
+student "$PROJECT/workspace/main.ts" 'const points: number = "three";
+document.querySelector("#score")!.textContent = `${points}`;'
+run changed good
+expect "own npm project: type error reported and capped" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'TS2322'"
+expect "own npm project: type error caps the score" contains "$PROJECT/FEEDBACK.md" "die Typprüfung meldet Fehler"
+student "$PROJECT/workspace/tsconfig.json" '{ "compilerOptions": { "strict": false, "noEmit": true, "lib": ["ES2023", "DOM"] } }'
+student "$PROJECT/workspace/main.ts" 'function twice(value) {
+  return value * 2;
+}
+document.querySelector("#score")!.textContent = `${twice(2)}`;'
+run changed good
+expect "own npm project: student change of tsconfig.json (note), course version used" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The student changed .workspace/tsconfig.json.: the check uses the course' && last_prompt | grep -q 'TS7006'"
+student "$PROJECT/workspace/package.json" '{ "private": true, "scripts": { "check": "echo ok" } }'
+run changed good
+expect "own npm project: student change of the check script (note), course script used" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The student changed .workspace/package.json.' && last_prompt | grep -q 'TS7006'"
 student "$TS/workspace/main.ts" 'import { prompt } from "@majikmate/ts-utils";
 while (true) {
   const answer = prompt("Again?");

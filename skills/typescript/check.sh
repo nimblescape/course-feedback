@@ -44,11 +44,15 @@ out="$work/out"
 rm -rf "$work"
 mkdir -p "$repo/$assignment" "$out"
 
-# A workspace that is its own npm project (Vite, React) needs its own
-# dependencies and scripts: not covered by this check yet.
+# A workspace that is its own npm project (Vite): a package.json of the course,
+# i.e. in the template copy of the class repository (its newest root commit)
+root=$(git rev-list --max-parents=0 HEAD | head -n 1)
+if git cat-file -e "$root:$workspace/package.json" 2>/dev/null; then
+  exec bash "$here/check-project.sh" "$assignment" "$root"
+fi
+note=""
 if [ -f "$workspace/package.json" ]; then
-  echo "The workspace is its own npm project (\`package.json\`): the automatic TypeScript check does not cover it yet."
-  exit 0
+  note="\`workspace/package.json\` is not a file of the course: the check ignores it."
 fi
 
 tools=$(install_tools "$here/tools" typescript)
@@ -78,7 +82,7 @@ fi
 [ "$runtime" = node ] || [ -f "$tools/jsr-modules.d.ts" ] || node "$tools/jsr-types.mjs"
 
 cp -r "$workspace" "$copy"
-rm -rf "$copy/node_modules" "$copy/dist"
+rm -rf "$copy/node_modules" "$copy/dist" "$copy/package.json" "$copy/package-lock.json"
 if [ "$runtime" = node ]; then
   # Like `npm start`: the root package.json (module type) and tsconfig.json; a
   # tsconfig.json in the workspace does not count.
@@ -138,6 +142,7 @@ fi
 
 echo "$heading"
 echo
+[ -z "$note" ] || printf '%s\n\n' "$note"
 SANDBOX_CHDIR="$copy" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$work" "$tools" "$packages" -- \
   timeout 120 node "$packages/node_modules/typescript/bin/tsc" -p "$work/tsconfig.json" --pretty false \
   > "$work/tsc.txt" 2>&1
