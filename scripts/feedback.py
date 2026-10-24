@@ -7,6 +7,7 @@ course checkout; the central repository is in .feedback/ (FEEDBACK_CENTRAL).
 
 Usage:
   feedback.py setting <key>                     value from config.yml
+  feedback.py course <key>                      value from .github/feedback.yml
   feedback.py skills <assignment>               feedback skills for the work
   feedback.py inputs <assignment> <folder>      answers for prompt(): 1.txt, …
   feedback.py prompt <assignment> <checks.md>   prompt on stdout
@@ -521,9 +522,16 @@ def command_render(assignment, answer_file, status_file):
     print(f"Score {percent} %{' (capped: ' + ', '.join(reasons) + ')' if reasons else ''}")
 
 
+def command_course(key):
+    """A value of the course file .github/feedback.yml (empty when not set)."""
+    value = course().get(key)
+    print("" if value is None else value)
+
+
 def main(argv):
     commands = {
-        "setting": (command_setting, 1), "skills": (command_skills, 1), "inputs": (command_inputs, 2),
+        "setting": (command_setting, 1), "course": (command_course, 1), "skills": (command_skills, 1),
+        "inputs": (command_inputs, 2),
         "prompt": (command_prompt, 2), "render": (command_render, 3),
     }
     if len(argv) < 2 or argv[1] not in commands or len(argv) - 2 != commands[argv[1]][1]:

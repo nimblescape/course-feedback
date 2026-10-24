@@ -26,8 +26,8 @@ scripts/run.sh, for each assignment with student work and with changes
    5. commit   one commit per FEEDBACK.md
    │
    ▼
-last step: scripts/push.sh pushes all feedback commits with the admin token
-FEEDBACK_PUSH_TOKEN (students cannot push FEEDBACK.md)
+last step: scripts/push.sh pushes all feedback commits with FEEDBACK_PUSH_TOKEN,
+a fine-grained token of an organisation admin (students cannot push FEEDBACK.md)
 ```
 
 An invalid answer is rejected and the model is asked again (at most three
@@ -39,7 +39,7 @@ attempts); nothing is written before an answer is valid.
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------- |
 | Assignments that get feedback                                            | `scripts/has-implementation.sh`: workspace differs from template |
 | Feedback skills for the work                                             | `metadata.files` and `metadata.contains` in each `SKILL.md`      |
-| Type check, program runs, HTML validation                                | check scripts with pinned tools (`package-lock.json`)            |
+| Type check, program runs, HTML validation                                | check scripts; tools pinned by a `package-lock.json`             |
 | Answers for `prompt()`, random numbers                                   | course file `.github/feedback/inputs.yml`; fixed random seed     |
 | "Does not run" (score cap 50 %)                                          | check results                                                    |
 | Prompt text and order                                                    | `scripts/feedback.py`                                            |
@@ -81,19 +81,29 @@ first feedback starts with `# Feedback: <title> – <time>`; an update appends
 
 ## Checks Without Deno
 
-- `typescript`: `tsc` (Microsoft TypeScript), strict, like `deno check main.ts`;
-  then `node` runs the emitted JavaScript once per answer set of `inputs.yml`
-  (run 1 = the README's example run). Browser programs (`index.html`) are
-  type-checked only.
+- `typescript`: a type check with `tsc` (Microsoft TypeScript), then one run
+  with `node` per answer set of `inputs.yml` (run 1 = the README's example run).
+  Browser programs (`index.html`) are type-checked only. The course file
+  `.github/feedback.yml` says how the students run their code:
+  - `runtime: node`: exactly as the students' `npm start`. The course's own
+    npm packages (TypeScript, tsx, `@majikmate/ts-utils`, …) are installed from
+    its root `package-lock.json` with `npm ci --ignore-scripts`, outside the
+    checkout. `tsc` checks `main.ts` and its imports with a `tsconfig.json` that
+    extends the course's root `tsconfig.json` (a workspace `tsconfig.json` does
+    not count), then tsx runs the program. A workspace that is its own npm
+    project (Vite, React) is not checked yet.
+  - `runtime: deno` (default, while a course still teaches Deno): `tsc` checks
+    like `deno check main.ts`, and `node` runs the emitted JavaScript.
+    [`deno-compat.mjs`](skills/typescript/tools/deno-compat.mjs) provides
+    `prompt()`, the taught `Deno.readTextFileSync` and `Deno.writeTextFileSync`,
+    and `jsr:` imports (packages pinned from npm.jsr.io); it echoes the prepared
+    answers and stops the program when they are used up.
+
+  For repeatable runs, both seed `Math.random()`
+  ([`seed-random.mjs`](skills/typescript/tools/seed-random.mjs)).
+
 - `html`: `index.html` exists and links a stylesheet of the workspace;
   `html-validate` with the presets the students see in VS Code.
-
-[`skills/typescript/tools/deno-compat.mjs`](skills/typescript/tools/deno-compat.mjs)
-lets today's Deno-style programs run unchanged with Node.js: `prompt()`, the
-taught `Deno.readTextFileSync` and `Deno.writeTextFileSync`, and `jsr:` imports
-(packages pinned from npm.jsr.io). For repeatable runs it also seeds
-`Math.random()`, echoes the prepared answers and stops the program when they are
-used up.
 
 ## Where Things Live
 
@@ -110,17 +120,19 @@ used up.
 - **The model gets text, nothing else.** No tools, no MCP servers, no project
   settings or instruction files, and it runs in an empty folder. Student files
   reach it only as data inside the prompt.
-- **Student programs run in a sandbox** (`scripts/sandbox.sh`, bubblewrap): no
-  network, no environment variables, no access to the repository, the home
-  folder or the runner's temporary folder; writes only in a copy of the
-  workspace; 10 seconds per run.
+- **Student programs and the type check run in a sandbox**
+  (`scripts/sandbox.sh`, bubblewrap): no network, no environment variables, no
+  access to the repository, the home folder or the runner's temporary folder;
+  writes only in a copy of the workspace; 10 seconds per run. npm packages are
+  installed before, without install scripts.
 - **Secrets only where needed.** The engine sees only its own secret; checks and
   student programs see none. A `FEEDBACK.md` with a secret value or a token is
   rejected.
 - **Only `FEEDBACK.md` is written and committed.** The checks work on copies.
 - **Students cannot change `FEEDBACK.md`.** The organisation ruleset protects
-  it; the feedback pushes with an admin token that only the last step gets,
-  after the model and the student programs have finished.
+  it; the feedback pushes with a fine-grained token of an organisation admin
+  (a bypass actor; "Contents: Read and write" only), and only the last step
+  gets it, after the model and the student programs have finished.
 - **Students cannot change the rules.** The organisation ruleset of HTLD-STH-SWP
   protects `.github/`, so the workflow, the course rules and the prepared inputs
   stay as the course defines them.

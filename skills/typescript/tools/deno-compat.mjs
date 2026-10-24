@@ -2,6 +2,7 @@
 // courses teach and jsr: imports. Loaded with `node --import`.
 import fs from "node:fs";
 import { registerHooks } from "node:module";
+import "./seed-random.mjs";
 
 // jsr:@scope/name[@version][/path] → the npm package @jsr/scope__name[/path]
 // that the check installed next to this file.
@@ -40,16 +41,6 @@ globalThis.prompt = (message = "Prompt", defaultValue) => {
   }
   if (echo) process.stdout.write(`${line}\n`);
   return line === "" && defaultValue !== null ? defaultValue : line;
-};
-
-// Repeatable random numbers: the same program gives the same output in every
-// feedback run (mulberry32 with a fixed seed).
-let seed = 20261024;
-Math.random = () => {
-  seed = (seed + 0x6d2b79f5) | 0;
-  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
 globalThis.Deno = {

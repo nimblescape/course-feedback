@@ -24,7 +24,7 @@ models:
 # same tools. The tools of the automatic checks (TypeScript, html-validate) are
 # pinned in the package-lock.json files next to the check scripts in skills/.
 versions:
-  node: "24" # major version
+  node: "26" # major version, the same as in the course devcontainers
   copilot: 1.0.103
   claude-code: 2.1.310
 

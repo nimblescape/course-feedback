@@ -106,27 +106,37 @@ as `COPILOT_GITHUB_TOKEN` today):
 
 | Secret                    | When                 | Content                                                                                      |
 | ------------------------- | -------------------- | -------------------------------------------------------------------------------------------- |
-| `FEEDBACK_CENTRAL_TOKEN`  | always               | Fine-grained token, owner `majikmate`, only this repository, "Contents: Read-only"           |
+| `FEEDBACK_WORKFLOW_TOKEN` | always               | Fine-grained token, owner `majikmate`, only this repository, "Contents: Read-only"           |
 | `COPILOT_GITHUB_TOKEN`    | engine `copilot`     | Token of the account whose Copilot subscription pays, with the "Copilot Requests" permission |
 | `CLAUDE_CODE_OAUTH_TOKEN` | engine `claude-code` | Output of `claude setup-token` (Claude Max plan)                                             |
 
-`FEEDBACK_CENTRAL_TOKEN` needs an organisation policy in majikmate that allows
+`FEEDBACK_WORKFLOW_TOKEN` needs an organisation policy in majikmate that allows
 fine-grained personal access tokens, and possibly the approval of the token
-there. Set an expiry date and renew the token before it expires.
+there. Set an expiry date and renew the token before it expires. Its old name
+`FEEDBACK_CENTRAL_TOKEN` is still read as a fallback until the old secret is
+deleted.
 
 ### Push token (pushes FEEDBACK.md)
 
 Organisation secret `FEEDBACK_PUSH_TOKEN`: a fine-grained personal access token
-of an organisation admin, resource owner HTLD-STH-SWP, "All repositories" (so
-new class repositories and student forks are included), repository permission
-"Contents: Read and write" only. Pushes with it count as admin pushes, which the
-ruleset lets through. The value of `TEMPLATE_SYNC_TOKEN` also works, but it has
-more permissions than the push needs.
+of an organisation admin of HTLD-STH-SWP (organisation admins are bypass actors
+of the rulesets):
+
+- Resource owner HTLD-STH-SWP, "All repositories" (so new class repositories
+  and student forks are included).
+- Repository permission "Contents: Read and write" only (GitHub adds "Metadata:
+  Read-only"). The token can push commits, but it cannot change settings,
+  rulesets, secrets, members or workflow files ("Workflows" permission
+  missing), although the account is an admin.
+- An expiry date. An expired token makes the push step fail (no fallback):
+  renew it before it expires. HTLD-STH-SWP must allow fine-grained personal
+  access tokens.
 
 Set the secret before the ruleset protects `FEEDBACK.md`. Without it, the
 workflow pushes with `GITHUB_TOKEN`, which works only while students may also
-change `FEEDBACK.md`. The token is passed only to the push step; the checks, the
-student programs and the model never see it. Renew the token before it expires.
+change `FEEDBACK.md`. The token is passed only to the push step, after the model
+and the student programs have finished; the checks, the student programs and
+the model never see it.
 
 ## Adding a Course
 
@@ -137,7 +147,17 @@ student programs and the model never see it. Renew the token before it expires.
    ```yaml
    course: oop-2 # selects the course values in config.yml
    language: en # locales/en.yml: headings and fixed texts of FEEDBACK.md
+   runtime: node # how students run TypeScript: node or deno (default)
    ```
+
+   With `runtime: node`, the TypeScript check works like the students'
+   `npm start`: it installs the course's own npm packages from its root
+   `package-lock.json` (`npm ci --ignore-scripts`, outside the checkout; git
+   dependencies such as `@majikmate/ts-utils` must be public), type-checks
+   `main.ts` and its imports with a `tsconfig.json` that extends the course's
+   root `tsconfig.json`, and runs the program with tsx. A `tsconfig.json` in the
+   workspace does not count. A workspace with its own `package.json` (Vite,
+   React) is not checked yet.
 
 3. Add `.github/instructions/feedback-course.instructions.md` with the course
    rules: students, language and tone, README sections, what the automatic

@@ -6,7 +6,8 @@
 #
 # Usage: .feedback/scripts/push.sh
 #
-# Environment: BRANCH; optionally PUSH_TOKEN, a token of an organisation admin.
+# Environment: BRANCH; optionally PUSH_TOKEN, a fine-grained token of an
+# organisation admin ("Contents: Read and write").
 # The organisation ruleset lets only its bypass actors change FEEDBACK.md, and
 # GITHUB_TOKEN cannot be one. Without PUSH_TOKEN, the credentials that
 # actions/checkout stored for the course are used (GITHUB_TOKEN).
