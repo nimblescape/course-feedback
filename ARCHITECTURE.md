@@ -77,7 +77,9 @@ or a secret or token appears. Otherwise it computes the score (rounded half up;
 at most 50 % when a check reported "does not run") and writes the sections
 Assessment, Best Practices, Suggestions and Summary in the course language. The
 first feedback starts with `# Feedback: <title> – <time>`; an update appends
-`---` and `## Update – <time>` and never changes earlier text.
+`---` and `## Update – <time>` and never changes earlier text. Every time is
+Austrian time (`TZ=Europe/Vienna`): `FEEDBACK.md`, the commit dates, the checks
+and the student programs.
 
 ## Checks Without Deno
 

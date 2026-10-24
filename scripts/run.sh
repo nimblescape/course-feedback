@@ -21,6 +21,9 @@
 
 set -euo pipefail
 
+# Every time of the feedback is Austrian time: FEEDBACK.md, the commit dates,
+# the checks and the student programs (scripts/sandbox.sh sets it again).
+export TZ=Europe/Vienna
 MODE="${1:-changed}"
 PUSH="${FEEDBACK_PUSH:-now}"
 export FEEDBACK_CENTRAL=".feedback"
@@ -169,7 +172,7 @@ for ASSIGNMENT in $ASSIGNMENTS; do
   fi
 
   export FEEDBACK_TIME
-  FEEDBACK_TIME=$(TZ=Europe/Vienna date '+%d.%m.%Y %H:%M')
+  FEEDBACK_TIME=$(date '+%d.%m.%Y %H:%M')
   run_checks "$ASSIGNMENT_PATH" > "$WORK/checks.md"
   echo "Skills: $(feedback skills "$ASSIGNMENT_PATH" | cut -f1 | tr '\n' ' ')· status: $(tr '\n' ' ' < "$WORK/status.txt")"
 
