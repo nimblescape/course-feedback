@@ -1,0 +1,33 @@
+# Central switch for every course feedback run.
+#
+# The course workflow reads this file from the main branch at every run, so a
+# change here applies to all courses and all student repositories at their next
+# run – no release needed.
+
+# false stops all feedback runs (for example when the budget is used up).
+enabled: true
+
+# Agent engine: the name of a file in engines/ (copilot, claude-code).
+# copilot runs the GitHub Copilot CLI and is billed through the Copilot account
+# of the COPILOT_GITHUB_TOKEN secret. claude-code runs Claude Code on the Claude
+# Max plan of the CLAUDE_CODE_OAUTH_TOKEN secret.
+engine: copilot
+
+# Model per engine, named as the engine knows it. A mid-tier model is enough:
+# the scripts do the mechanical work and the model only judges and writes.
+models:
+  copilot: claude-sonnet-5.5
+  claude-code: sonnet
+
+# At most this many assignments get feedback in one run; the others are skipped
+# in that run (the nightly run catches assignments without feedback).
+max_assignments_per_run: 20
+
+# Optional settings per course id (the "course" in the course repository's
+# .github/feedback.yml). Each key replaces the value above for that course.
+courses: {}
+#  html-css-2:
+#    models:
+#      copilot: claude-haiku-5.5
+#  ts-2:
+#    enabled: false
