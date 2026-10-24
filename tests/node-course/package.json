@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "dependencies": { "es-toolkit": "^1.53.0", "yoctocolors": "^2.2.0" },
+  "devDependencies": { "@types/node": "^24.0.0", "typescript": "^7.0.2" }
+}

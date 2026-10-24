@@ -7,7 +7,8 @@
 #
 # Hidden: /tmp, the home folder, the runner's temporary folder (credentials of
 # actions/checkout) and the course checkout (git credentials). stdin is passed
-# on, so prepared answers can be piped in.
+# on, so prepared answers can be piped in. The program starts in the writable
+# folder, or in SANDBOX_CHDIR when set (a folder inside it).
 
 set -euo pipefail
 
@@ -21,7 +22,7 @@ while [ "$1" != "--" ]; do
   shift
 done
 shift
-args+=(--bind "$writable" "$writable" --chdir "$writable")
+args+=(--bind "$writable" "$writable" --chdir "${SANDBOX_CHDIR:-$writable}")
 args+=(--unshare-all --die-with-parent --new-session)
 args+=(--clearenv --setenv PATH "$PATH" --setenv HOME "$writable" --setenv LANG C.UTF-8)
 exec bwrap "${args[@]}" "$@"

@@ -168,6 +168,44 @@ env BRANCH=main bash .feedback/scripts/push.sh > "$T/push.log" 2>&1
 expect "second push: nothing to push" grep -q "No feedback to push." "$T/push.log"
 git fetch -q origin && git reset -q --hard origin/main
 
+echo "9. runtime: node: course tsconfig.json, prompt.ts import, npm packages, node:fs"
+git reset -q --hard origin/main
+printf 'course: test\nlanguage: de\nruntime: node\n' > .github/feedback.yml
+cp "$CENTRAL/tests/node-course/tsconfig.json" "$CENTRAL/tests/node-course/package.json" .
+cp "$CENTRAL/tests/node-course/prompt.ts" "$TS/workspace/prompt.ts"
+echo '{ "extends": "../../../../tsconfig.json", "compilerOptions": { "strict": false } }' > "$TS/workspace/tsconfig.json"
+git add -A && git -c user.name=t -c user.email=t@t commit -qm "teacher: switch to Node" && git push -q origin HEAD:main
+student "$TS/workspace/main.ts" 'import { readFileSync, writeFileSync } from "node:fs";
+import { maxBy } from "es-toolkit";
+import { green } from "yoctocolors";
+import { prompt } from "./prompt.ts";
+
+const name = prompt("Your name?") ?? "";
+const number = Number(prompt("A number?"));
+writeFileSync("twice.txt", `${number * 2}`);
+console.log(green(`Hello ${name}! Twice your number is ${readFileSync("twice.txt", "utf8")}.`));
+console.log(`Largest: ${maxBy([{ n: 1 }, { n: 5 }], (item) => item.n)?.n}`);'
+run changed good
+expect "run succeeds" exit_code 0
+expect "prompt: course tsconfig.json used" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF 'with the course'\''s \`tsconfig.json\`'"
+expect "prompt: tsc passed" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.'"
+expect "prompt: prompt.ts echoes the piped answer" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Your name? Mia'"
+expect "prompt: node:fs and yoctocolors" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Hello Mia! Twice your number is 6.'"
+expect "prompt: es-toolkit" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Largest: 5'"
+expect "prompt: second run" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Twice your number is NaN'"
+student "$TS/workspace/main.ts" 'const name: string = prompt("Your name?") ?? "";
+console.log(name);'
+run changed good
+expect "missing import: type error" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q \"Cannot find name 'prompt'\""
+expect "missing import: not run, capped" contains "$TS/FEEDBACK.md" "die Typprüfung meldet Fehler"
+student "$TS/workspace/main.ts" 'import { prompt } from "./prompt.ts";
+while (true) {
+  const answer = prompt("Again?");
+  if (answer === "stop") break;
+}'
+run changed good
+expect "end of input: null, endless loop stopped" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'stopped after 10 seconds'"
+
 echo
 echo "$PASSED passed, $FAILED failed (logs in $T)"
 [ "$FAILED" -eq 0 ]
