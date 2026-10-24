@@ -99,6 +99,8 @@ expect "prompt: example run with answers" bash -c "$(declare -f last_prompt); T=
 expect "prompt: second run with wrong input" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Twice your number is NaN'"
 expect "prompt: typescript skill, no oop skill" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^## Skill: typescript' && ! last_prompt | grep -q '^## Skill: oop'"
 expect "prompt: no secret" bash -c "! grep -q fake-secret '$T/prompts.log'"
+expect "feedback commit in Austrian time (Europe/Vienna)" \
+  test "$(git -C "$T/remote.git" log -1 --format=%ai main | cut -c 21-)" = "$(TZ=Europe/Vienna date +%z)"
 
 echo "2. No change: no model run"
 before=$(grep -c PROMPT-END "$T/prompts.log")
@@ -218,6 +220,9 @@ class Greeter {
 console.log(new Greeter(prompt("Your name?") ?? "", Mood.Happy).greet());'
 run changed good
 expect "tsx: enum and parameter properties run" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Hello Mia! (Happy)'"
+student "$TS/workspace/main.ts" 'console.log(`Zone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`);'
+run changed good
+expect "student program runs in Austrian time (Europe/Vienna)" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Zone: Europe/Vienna'"
 student "$TS/workspace/main.ts" 'const name: string = prompt("Your name?") ?? "";
 console.log(name);'
 run changed good

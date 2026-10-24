@@ -14,6 +14,9 @@
 
 set -euo pipefail
 
+# Austrian time for the commit dates of the rebase, as in scripts/run.sh
+export TZ=Europe/Vienna
+
 if [ -n "${PUSH_TOKEN:-}" ]; then
   # Replace the stored Authorization header for github.com; an empty value
   # first clears the list of extra headers. Environment config is used instead
