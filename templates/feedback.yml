@@ -6,8 +6,9 @@ name: Feedback
 #
 # Students cannot change FEEDBACK.md: the organisation ruleset lets only its
 # bypass actors push it, and GITHUB_TOKEN cannot be one. The last step
-# therefore pushes with the secret FEEDBACK_PUSH_TOKEN, a token of an
-# organisation admin; without the secret it uses GITHUB_TOKEN.
+# therefore pushes with the secret FEEDBACK_PUSH_TOKEN, a token of the feedback
+# bot account (see the README of course-feedback); without the secret it uses
+# GITHUB_TOKEN.
 #
 #   push      assignments whose workspace/ changed
 #   schedule  nightly safety net: student work without FEEDBACK.md

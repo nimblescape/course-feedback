@@ -117,11 +117,20 @@ there. Set an expiry date and renew the token before it expires.
 ### Push token (pushes FEEDBACK.md)
 
 Organisation secret `FEEDBACK_PUSH_TOKEN`: a fine-grained personal access token
-of an organisation admin, resource owner HTLD-STH-SWP, "All repositories" (so
-new class repositories and student forks are included), repository permission
-"Contents: Read and write" only. Pushes with it count as admin pushes, which the
-ruleset lets through. The value of `TEMPLATE_SYNC_TOKEN` also works, but it has
-more permissions than the push needs.
+of a bot account, resource owner HTLD-STH-SWP, "All repositories" (so new class
+repositories and student forks are included), repository permission "Contents:
+Read and write" only. The bot account needs far less than an organisation admin:
+
+1. A separate GitHub account, member of HTLD-STH-SWP, with the predefined
+   organisation role "All-repository write" (write access to every repository,
+   no settings, no admin).
+2. A team (for example `feedback-bot`) with only this account; rulesets accept
+   teams as bypass actors, not single users. The repository role "Write" cannot
+   be used: students have it on their forks.
+3. A small ruleset that restricts only `20-assignments/*/*/FEEDBACK.md`, with
+   this team on its bypass list. The other rulesets allow `FEEDBACK.md` and do
+   not list the bot, so the bot can change `FEEDBACK.md` and nothing else that
+   is protected.
 
 Set the secret before the ruleset protects `FEEDBACK.md`. Without it, the
 workflow pushes with `GITHUB_TOKEN`, which works only while students may also
