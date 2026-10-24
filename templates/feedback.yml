@@ -5,9 +5,9 @@ name: Feedback
 # which agent engine and model run.
 #
 # Students cannot change FEEDBACK.md: the organisation ruleset lets only its
-# bypass actors push it. The last step therefore pushes with a token of the
-# organisation's feedback GitHub App (variable FEEDBACK_APP_CLIENT_ID, secret
-# FEEDBACK_APP_PRIVATE_KEY); without the variable it uses GITHUB_TOKEN.
+# bypass actors push it, and GITHUB_TOKEN cannot be one. The last step
+# therefore pushes with the secret FEEDBACK_PUSH_TOKEN, a token of an
+# organisation admin; without the secret it uses GITHUB_TOKEN.
 #
 #   push      assignments whose workspace/ changed
 #   schedule  nightly safety net: student work without FEEDBACK.md
@@ -108,21 +108,12 @@ jobs:
           esac
           bash .feedback/scripts/run.sh "$mode"
 
-      # A fresh token (valid for one hour) only for the push: it never exists
-      # while the model or student code runs
-      - name: Create push token
-        id: app
-        if: always() && steps.repository.outputs.feedback && vars.FEEDBACK_APP_CLIENT_ID != ''
-        uses: actions/create-github-app-token@v3
-        with:
-          client-id: ${{ vars.FEEDBACK_APP_CLIENT_ID }}
-          private-key: ${{ secrets.FEEDBACK_APP_PRIVATE_KEY }}
-          permission-contents: write
-
-      # Also after a failed or cancelled feedback step: finished feedback is kept
+      # Also after a failed or cancelled feedback step: finished feedback is
+      # kept. The push token exists only in this step, after the model and the
+      # student programs have finished.
       - name: Push feedback
         if: always() && steps.repository.outputs.feedback
         env:
-          PUSH_TOKEN: ${{ steps.app.outputs.token }}
+          PUSH_TOKEN: ${{ secrets.FEEDBACK_PUSH_TOKEN }}
           BRANCH: ${{ github.ref_name }}
         run: bash .feedback/scripts/push.sh

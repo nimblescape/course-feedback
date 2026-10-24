@@ -26,8 +26,8 @@ scripts/run.sh, for each assignment with student work and with changes
    5. commit   one commit per FEEDBACK.md
    │
    ▼
-last step: scripts/push.sh pushes all feedback commits with a token of the
-feedback GitHub App (students cannot push FEEDBACK.md)
+last step: scripts/push.sh pushes all feedback commits with the admin token
+FEEDBACK_PUSH_TOKEN (students cannot push FEEDBACK.md)
 ```
 
 An invalid answer is rejected and the model is asked again (at most three
@@ -119,8 +119,8 @@ used up.
   rejected.
 - **Only `FEEDBACK.md` is written and committed.** The checks work on copies.
 - **Students cannot change `FEEDBACK.md`.** The organisation ruleset protects
-  it; the feedback pushes with a GitHub App token that is created only for the
-  last step, after the model and the student programs have finished.
+  it; the feedback pushes with an admin token that only the last step gets,
+  after the model and the student programs have finished.
 - **Students cannot change the rules.** The organisation ruleset of HTLD-STH-SWP
   protects `.github/`, so the workflow, the course rules and the prepared inputs
   stay as the course defines them.

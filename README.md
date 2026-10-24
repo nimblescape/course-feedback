@@ -96,7 +96,7 @@ ruleset.
 Students must not change `FEEDBACK.md` either. When the ruleset protects
 `20-assignments/*/*/FEEDBACK.md`, only its bypass actors can push the file, and
 `GITHUB_TOKEN` cannot be one. The course workflow therefore pushes in its last
-step with a token of the feedback GitHub App (see below); `scripts/run.sh` only
+step with the secret `FEEDBACK_PUSH_TOKEN` (see below); `scripts/run.sh` only
 commits (`FEEDBACK_PUSH: later`).
 
 ## Secrets in the Student Organisation (HTLD-STH-SWP)
@@ -114,22 +114,19 @@ as `COPILOT_GITHUB_TOKEN` today):
 fine-grained personal access tokens, and possibly the approval of the token
 there. Set an expiry date and renew the token before it expires.
 
-### Feedback GitHub App (pushes FEEDBACK.md)
+### Push token (pushes FEEDBACK.md)
 
-1. In HTLD-STH-SWP: Settings → Developer settings → GitHub Apps → New GitHub
-   App. Webhook off; repository permission "Contents: Read and write"; only on
-   this account.
-2. Generate a private key and install the app on all repositories of the
-   organisation.
-3. Organisation variable `FEEDBACK_APP_CLIENT_ID`: the app's Client ID.
-   Organisation secret `FEEDBACK_APP_PRIVATE_KEY`: the content of the private
-   key file.
-4. Add the app to the bypass list of the ruleset that protects `FEEDBACK.md`.
+Organisation secret `FEEDBACK_PUSH_TOKEN`: a fine-grained personal access token
+of an organisation admin, resource owner HTLD-STH-SWP, "All repositories" (so
+new class repositories and student forks are included), repository permission
+"Contents: Read and write" only. Pushes with it count as admin pushes, which the
+ruleset lets through. The value of `TEMPLATE_SYNC_TOKEN` also works, but it has
+more permissions than the push needs.
 
-Do this before the ruleset protects `FEEDBACK.md`. Without the variable, the
+Set the secret before the ruleset protects `FEEDBACK.md`. Without it, the
 workflow pushes with `GITHUB_TOKEN`, which works only while students may also
-change `FEEDBACK.md`. Each run creates a new token for the current repository,
-valid for one hour, only in the push step.
+change `FEEDBACK.md`. The token is passed only to the push step; the checks, the
+student programs and the model never see it. Renew the token before it expires.
 
 ## Adding a Course
 
