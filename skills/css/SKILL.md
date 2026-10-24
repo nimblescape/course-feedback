@@ -16,8 +16,8 @@ only when its topic has been taught. -->
 
 ## Selectors – Use the Right Tool
 
-- **Element selectors** (`p`, `h1`, `a`) for the _default look_ of an element
-  type across the whole page (base typography, link colour, resets).
+- **Type selectors** (`p`, `h1`, `a`) for the _default look_ of an element type
+  across the whole page (base typography, link colour, resets).
 - **Class selectors** (`.card`, `.nav-link`) for _reusable components and
   variations_. Classes are the default choice for styling.
 - **ID selectors** (`#main-navigation`) only for _one single element_ per page,
@@ -27,14 +27,15 @@ only when its topic has been taught. -->
   - ❌ `#box1 { ... } #box2 { ... }` with identical declarations → should be one
     class.
   - ✅ `#contact` as a link target plus `.contact-section` for styling.
-- **Combinators and grouping**: praise sensible use of descendant (`nav a`),
-  child (`ul > li`), grouping (`h1, h2, h3`) and pseudo-classes (`a:hover`,
-  `li:first-child`). Flag over-long chains (`body div div ul li a`) – they are
-  fragile and too specific.
+- **Combinators and selector lists**: praise sensible use of the descendant
+  (`nav a`), child (`ul > li`), next-sibling (`h2 + p`) and subsequent-sibling
+  (`h2 ~ p`) combinators, selector lists (`h1, h2, h3`) and pseudo-classes
+  (`a:hover`, `li:first-child`). Flag over-long chains (`body div div ul li a`)
+  – they are fragile and too specific.
 - **Avoid `!important`.** If it appears, explain which specificity conflict
   caused it and how to resolve it with a better selector.
 - Flag **duplicated declarations** across several rules → extract a shared class
-  or use grouping.
+  or use a selector list.
 
 ## Class Names
 

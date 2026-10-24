@@ -90,7 +90,7 @@ expect "score 100 %" contains "$TS/FEEDBACK.md" "**Ergebnis: 100 %**"
 expect "requirement line with short text" contains "$TS/FEEDBACK.md" '- ✅ **1. Zwei `prompt()`-Aufrufe: Name, dann Zahl.** – Gut gemacht (R1).'
 expect "criteria lines" contains "$TS/FEEDBACK.md" "- **Codequalität:** Passt (C2)."
 expect "commit count" contains "$TS/FEEDBACK.md" '- **Commits in `workspace/`:** 1'
-expect "multi-line text joined" contains "$TS/FEEDBACK.md" "Template Strings verwenden."
+expect "multi-line text joined" contains "$TS/FEEDBACK.md" "Template Literals verwenden."
 expect "prompt: tsc passed" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.'"
 expect "prompt: example run with answers" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Hello Mia! Twice your number is 6.'"
 expect "prompt: second run with wrong input" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Twice your number is NaN'"

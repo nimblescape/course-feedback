@@ -14,7 +14,7 @@ Hello Mia! Twice your number is 6.
 
 - [ ] Zwei `prompt()`-Aufrufe: Name, dann Zahl.
 - [ ] Die Zahl wird mit `Number()` umgewandelt und verdoppelt.
-- [ ] Die Ausgabe ist ein Template String.
+- [ ] Die Ausgabe ist ein Template Literal.
 
 ## Kriterien
 

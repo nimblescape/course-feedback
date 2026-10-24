@@ -19,7 +19,7 @@ answer = {
     "criteria": [{"id": c, "comment": f"Passt ({c})."} for c in criteria],
     "run": "Der Beispiellauf passt.",
     "best_practices": [{"rating": "good", "topic": "Names", "text": "Klare Namen."},
-                       {"rating": "improve", "topic": "Output", "text": "Template Strings\nverwenden."}],
+                       {"rating": "improve", "topic": "Output", "text": "Template Literals\nverwenden."}],
     "suggestions": [{"text": "Nutze `const`.", "code": "const name = prompt(\"Name?\") ?? \"\";", "language": "typescript"}],
     "changes": "Du hast den NaN-Fall ergänzt." if update else "",
     "summary": "Super Arbeit!",

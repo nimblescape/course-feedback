@@ -56,7 +56,7 @@ only when its topic has been taught. -->
 
 ## Output
 
-- **Template strings** for every output that mixes text and values; flag
+- **Template literals** for every output that mixes text and values; flag
   `"Age: " + age + " years"` chains.
 - Money and averages rounded for printing (`toFixed`), units in the message.
 - No leftover debugging output.
