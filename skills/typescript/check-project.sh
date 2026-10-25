@@ -4,12 +4,16 @@
 # it, with the project's own npm packages. Prints Markdown facts for the prompt
 # (see scripts/check-lib.sh).
 #
-# Usage: check-project.sh <assignment-path> <commit>   (called by check.sh)
+# Usage: check-project.sh <assignment-path> <commit> [<ts>]   (called by check.sh)
 #
 # <commit> is the template copy of the class repository (its newest root
 # commit). package.json, package-lock.json and tsconfig.json lie in the
 # student-writable workspace, so they count in the version of that commit: the
 # template sync never changes workspace files later.
+#
+# <ts> (runtime: ts) is the installation folder of the command ts: a check
+# script such as `ts --check` finds ts on the PATH, as in the students'
+# terminal.
 
 set -uo pipefail
 
@@ -18,6 +22,7 @@ source "$FEEDBACK_CENTRAL/scripts/check-lib.sh"
 
 assignment="${1%/}"
 root="$2"
+ts="${3:-}"
 workspace="$assignment/workspace"
 work="$FEEDBACK_WORK/typescript"
 copy="$work/project"
@@ -57,7 +62,18 @@ if [ ! -f "$packages/.installed" ]; then
   echo "The project's npm packages could not be installed (\`npm ci\` with its \`package-lock.json\`): no automatic check."
   exit 0
 fi
-ln -s "$packages/node_modules" "$copy/node_modules"
+# A writable node_modules (ts writes its run folder to node_modules/.cache)
+# with one link per installed package and npm's bin folder
+mkdir "$copy/node_modules"
+for package in "$packages/node_modules"/* "$packages/node_modules/.bin"; do
+  [ ! -e "$package" ] || ln -s "$package" "$copy/node_modules/"
+done
+readable=("$packages")
+path="$PATH"
+if [ -n "$ts" ]; then
+  readable+=("$ts")
+  path="$ts/node_modules/.bin:$PATH"
+fi
 
 echo "### Type check (\`npm run check\` of the project: \`$script\`)"
 echo
@@ -65,10 +81,11 @@ for note in "${notes[@]}"; do
   echo "$note"
   echo
 done
-SANDBOX_CHDIR="$copy" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$work" "$packages" -- \
+PATH="$path" SANDBOX_CHDIR="$copy" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$work" "${readable[@]}" -- \
   timeout 120 npm run check --silent --no-update-notifier > "$work/check.txt" 2>&1
 status=$?
 sed -i -e "s#$copy/##g; s#$packages/##g" "$work/check.txt"
+[ -z "$ts" ] || sed -i -e "s#$ts/##g" "$work/check.txt"
 if [ "$status" -eq 0 ]; then
   echo "No errors."
 else
