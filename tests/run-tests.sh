@@ -292,6 +292,87 @@ student "$TS/workspace/main.ts" 'console.log("no lock");'
 run changed good
 expect "no package-lock.json: no check, told" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The course has no .package-lock.json.'"
 
+echo "10. runtime: ts: the command ts, no package.json, the TypeScript that ts installs"
+git reset -q --hard origin/main
+# No package.json and no tsconfig.json (also not the one that section 9 added
+# to the workspace): the defaults of ts
+git rm -q package.json tsconfig.json "$TS/workspace/tsconfig.json"
+printf 'course: test\nlanguage: de\nruntime: ts\n' > .github/feedback.yml
+git add -A && git -c user.name=t -c user.email=t@t commit -qm "teacher: switch to ts" && git push -q origin HEAD:main
+student "$TS/workspace/main.ts" 'import { readFileSync, writeFileSync } from "node:fs";
+
+const name = prompt("Your name?") ?? "";
+const number = Number(prompt("A number?"));
+writeFileSync("twice.txt", `${number * 2}`);
+console.log(`Hello ${name}! Twice your number is ${readFileSync("twice.txt", "utf8")}.`);
+console.log(`Random: ${Math.random()}`);'
+run changed good
+expect "run succeeds" exit_code 0
+expect "ts from its package-lock.json (0.2.0)" \
+  bash -c "grep -q '\"version\": \"0.2.0\"' '$T'/runner/feedback-tools/ts/node_modules/@nimblescape/typescript/package.json"
+expect "log: ts installed TypeScript and names the versions" bash -c "grep -q '^ts 0.2.0' '$T/run.log' && grep -q '^TypeScript [0-9.]* (global' '$T/run.log'"
+expect "prompt: ts --check" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF '(\`ts --check\`, like the students'\'' \`ts main.ts\`)'"
+expect "prompt: no errors" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.'"
+expect "prompt: global prompt() echoes the piped answer" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Your name? Mia'"
+expect "prompt: node:fs" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Hello Mia! Twice your number is 6.'"
+expect "prompt: second run" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Twice your number is NaN'"
+expect "prompt: Math.random() seeded in both runs" \
+  bash -c "$(declare -f last_prompt); T=$T; test \"\$(last_prompt | grep -c 'Random: 0.28407089272513986')\" = 2"
+student "$TS/workspace/main.ts" 'enum Mood { Happy, Sad }
+
+class Greeter {
+  constructor(private readonly name: string, private mood: Mood) {}
+
+  greet(): string {
+    return `Hello ${this.name}! (${Mood[this.mood]})`;
+  }
+}
+
+console.log(new Greeter(prompt("Your name?") ?? "", Mood.Happy).greet());'
+run changed good
+expect "ts: enum and parameter properties run" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Hello Mia! (Happy)'"
+student "$TS/workspace/main.ts" 'function twice(value) {
+  return value * 2;
+}
+console.log(twice(Number(prompt("A number?"))));'
+run changed good
+expect "defaults of ts strict: implicit any, not run" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'main.ts(1,16): error TS7006' && last_prompt | grep -q 'The program was not run'"
+expect "type error caps the score" contains "$TS/FEEDBACK.md" "die Typprüfung meldet Fehler"
+student "$TS/workspace/main.ts" 'function fail(): never {
+  throw new Error("boom");
+}
+console.log(`Zone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`);
+fail();'
+run changed good
+expect "student program runs in Austrian time (Europe/Vienna)" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Zone: Europe/Vienna'"
+expect "crash: the line of main.ts, short path" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^    at fail (main.ts:2:9)' && last_prompt | grep -q 'the program stopped with an error'"
+student "$TS/workspace/main.ts" 'while (true) {
+  const answer = prompt("Again?");
+  if (answer === "stop") break;
+}'
+run changed good
+expect "end of input: null, endless loop stopped" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'stopped after 10 seconds'"
+
+# npm install yoctocolors in the workspace (ts-2 chapter 12): a package.json
+# without "type" and its package-lock.json, written by the student
+mkdir -p "$T/npm-yoctocolors"
+(cd "$T/npm-yoctocolors" && npm install --package-lock-only --no-audit --no-fund --silent yoctocolors@2.2.0)
+student "$TS/workspace/package.json" "$(cat "$T/npm-yoctocolors/package.json")"
+student "$TS/workspace/package-lock.json" "$(cat "$T/npm-yoctocolors/package-lock.json")"
+student "$TS/workspace/main.ts" 'import { green } from "yoctocolors";
+
+const name = prompt("Your name?") ?? "";
+console.log(green(`Correct, ${name}!`));'
+run changed good
+expect "workspace package.json of the student: its packages installed" \
+  bash -c "grep -q '\"version\": \"2.2.0\"' '$T'/runner/feedback-tools/workspace-*/node_modules/yoctocolors/package.json"
+expect "workspace packages: no errors, the program runs" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.' && last_prompt | grep -q 'Correct, Mia!'"
+expect "workspace packages: no note" bash -c "$(declare -f last_prompt); T=$T; ! last_prompt | grep -q 'could not be installed\\|no .workspace/package-lock.json.\\|is not a file of the course'"
+git rm -q "$TS/workspace/package-lock.json" && git -c user.name=t -c user.email=t@t commit -qm "student: no lock" && git push -q origin HEAD:main
+student "$TS/workspace/main.ts" 'import { green } from "yoctocolors";
+console.log(green("no lock"));'
+run changed good
+expect "workspace package.json without package-lock.json: note, not installed" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'there is no .workspace/package-lock.json.' && last_prompt | grep -q 'yoctocolors'"
 echo
 echo "$PASSED passed, $FAILED failed (logs in $T)"
 [ "$FAILED" -eq 0 ]

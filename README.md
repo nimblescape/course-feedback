@@ -147,8 +147,24 @@ the model never see it.
    ```yaml
    course: oop-2 # selects the course values in config.yml
    language: en # locales/en.yml: headings and fixed texts of FEEDBACK.md
-   runtime: node # how students run TypeScript: node or deno (default)
+   runtime: ts # how students run TypeScript: ts, node or deno (default)
    ```
+
+   With `runtime: ts`, the TypeScript check works like the students'
+   `ts main.ts` (the command `ts` of
+   [nimblescape TypeScript](https://www.npmjs.com/package/@nimblescape/typescript),
+   in the exact version of
+   [`skills/typescript/ts/package-lock.json`](skills/typescript/ts/package-lock.json)):
+   `ts --check` checks `main.ts` and its imports with the nearest
+   `tsconfig.json` (the workspace, then the course root) or, without one, the
+   defaults of `ts`; then `ts` runs the program, and `prompt()` is global. The
+   TypeScript is the one that `ts` installs outside VS Code: the TypeScript of
+   the newest VS Code (`ts --install-typescript`, once per run; the log shows
+   the versions). The course needs no `package.json`. A `package.json` in the
+   workspace counts, as it does for `ts`: when the students install a package
+   there with `npm install` (for example in ts-2 chapter 12), the check first
+   installs the packages of the workspace's `package-lock.json`
+   (`npm ci --ignore-scripts`, outside the checkout).
 
    With `runtime: node`, the TypeScript check works like the students'
    `npm start`: it installs the course's own npm packages from its root
