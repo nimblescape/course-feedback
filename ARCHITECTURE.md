@@ -87,6 +87,16 @@ and the student programs.
   with `node` per answer set of `inputs.yml` (run 1 = the README's example run).
   Browser programs (`index.html`) are type-checked only. The course file
   `.github/feedback.yml` says how the students run their code:
+  - `runtime: ts`: exactly as the students' `ts main.ts`. The command `ts` of
+    nimblescape TypeScript comes from
+    [`ts/package-lock.json`](skills/typescript/ts/package-lock.json) (`npm ci
+    --ignore-scripts`); once per run, `ts --install-typescript` installs the
+    TypeScript that `ts` uses outside VS Code (the TypeScript of the newest VS
+    Code) globally, and the log shows the versions. `ts --check` checks
+    `main.ts` and its imports with the nearest `tsconfig.json` (the workspace,
+    then the course root) or the defaults of `ts`, then `ts main.ts` runs the
+    program with the global `prompt()`. Node.js takes `seed-random.mjs` from
+    `NODE_OPTIONS`.
   - `runtime: node`: exactly as the students' `npm start`. The course's own
     npm packages (TypeScript, tsx, `@majikmate/ts-utils`, …) are installed from
     its root `package-lock.json` with `npm ci --ignore-scripts`, outside the
@@ -100,7 +110,7 @@ and the student programs.
     and `jsr:` imports (packages pinned from npm.jsr.io); it echoes the prepared
     answers and stops the program when they are used up.
 
-  For repeatable runs, both seed `Math.random()`
+  For repeatable runs, all three seed `Math.random()`
   ([`seed-random.mjs`](skills/typescript/tools/seed-random.mjs)).
 
   A workspace that is its own npm project (its `package.json` is in the

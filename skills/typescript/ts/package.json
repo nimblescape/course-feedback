@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "The command ts of the students (nimblescape TypeScript) for runtime: ts (exact version, installed with npm ci)",
+  "dependencies": {
+    "@nimblescape/typescript": "0.2.0"
+  }
+}
