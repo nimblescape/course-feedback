@@ -353,6 +353,26 @@ student "$TS/workspace/main.ts" 'while (true) {
 run changed good
 expect "end of input: null, endless loop stopped" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'stopped after 10 seconds'"
 
+# npm install yoctocolors in the workspace (ts-2 chapter 12): a package.json
+# without "type" and its package-lock.json, written by the student
+mkdir -p "$T/npm-yoctocolors"
+(cd "$T/npm-yoctocolors" && npm install --package-lock-only --no-audit --no-fund --silent yoctocolors@2.2.0)
+student "$TS/workspace/package.json" "$(cat "$T/npm-yoctocolors/package.json")"
+student "$TS/workspace/package-lock.json" "$(cat "$T/npm-yoctocolors/package-lock.json")"
+student "$TS/workspace/main.ts" 'import { green } from "yoctocolors";
+
+const name = prompt("Your name?") ?? "";
+console.log(green(`Correct, ${name}!`));'
+run changed good
+expect "workspace package.json of the student: its packages installed" \
+  bash -c "grep -q '\"version\": \"2.2.0\"' '$T'/runner/feedback-tools/workspace-*/node_modules/yoctocolors/package.json"
+expect "workspace packages: no errors, the program runs" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.' && last_prompt | grep -q 'Correct, Mia!'"
+expect "workspace packages: no note" bash -c "$(declare -f last_prompt); T=$T; ! last_prompt | grep -q 'could not be installed\\|no .workspace/package-lock.json.\\|is not a file of the course'"
+git rm -q "$TS/workspace/package-lock.json" && git -c user.name=t -c user.email=t@t commit -qm "student: no lock" && git push -q origin HEAD:main
+student "$TS/workspace/main.ts" 'import { green } from "yoctocolors";
+console.log(green("no lock"));'
+run changed good
+expect "workspace package.json without package-lock.json: note, not installed" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'there is no .workspace/package-lock.json.' && last_prompt | grep -q 'yoctocolors'"
 echo
 echo "$PASSED passed, $FAILED failed (logs in $T)"
 [ "$FAILED" -eq 0 ]

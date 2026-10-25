@@ -19,7 +19,10 @@
 #                            ts runs main.ts; prompt() is global. TypeScript:
 #                            the one that ts installs outside VS Code, the
 #                            TypeScript of the newest VS Code
-#                            (ts --install-typescript, once per run).
+#                            (ts --install-typescript, once per run). A
+#                            package.json in the workspace counts, as for ts:
+#                            the packages of its package-lock.json are
+#                            installed like the students' `npm install`.
 #   runtime: node            exactly as the students' `npm start`: the course's
 #                            own npm packages (package-lock.json: TypeScript,
 #                            tsx, @majikmate/ts-utils, …), tsc with a tsconfig
@@ -59,7 +62,7 @@ if git cat-file -e "$root:$workspace/package.json" 2>/dev/null; then
   exec bash "$here/check-project.sh" "$assignment" "$root"
 fi
 note=""
-if [ -f "$workspace/package.json" ]; then
+if [ -f "$workspace/package.json" ] && [ "$runtime" != ts ]; then
   note="\`workspace/package.json\` is not a file of the course: the check ignores it."
 fi
 
@@ -91,6 +94,28 @@ elif [ "$runtime" = node ]; then
 else
   packages="$tools"
 fi
+# runtime: ts and a package.json in the workspace (npm install of the student,
+# chapter 12): the packages of its package-lock.json, like `npm ci`, installed
+# outside the checkout without install scripts
+readable=("$tools" "$packages")
+own=""
+if [ "$runtime" = ts ] && [ -f "$workspace/package.json" ] \
+  && jq -e '((.dependencies // {}) + (.devDependencies // {})) | length > 0' "$workspace/package.json" > /dev/null 2>&1; then
+  if [ ! -f "$workspace/package-lock.json" ]; then
+    note="\`workspace/package.json\` names packages, but there is no \`workspace/package-lock.json\`: the packages were not installed."
+  else
+    mkdir -p "$work/workspace-npm"
+    cp "$workspace/package.json" "$workspace/package-lock.json" "$work/workspace-npm/"
+    key=$(cat "$workspace/package.json" "$workspace/package-lock.json" | sha256sum | cut -c 1-16)
+    own=$(install_tools "$work/workspace-npm" "workspace-$key")
+    if [ -f "$own/.installed" ]; then
+      readable+=("$own")
+    else
+      note="The packages of \`workspace/package-lock.json\` could not be installed (\`npm ci\`): the check runs without them."
+      own=""
+    fi
+  fi
+fi
 if [ "$runtime" != ts ] && [ ! -f "$packages/node_modules/typescript/bin/tsc" ]; then
   if [ "$runtime" = node ]; then
     echo "The course's npm packages could not be installed (\`npm ci\` with its \`package-lock.json\`): no automatic check."
@@ -102,7 +127,16 @@ fi
 [ "$runtime" != deno ] || [ -f "$tools/jsr-modules.d.ts" ] || node "$tools/jsr-types.mjs"
 
 cp -r "$workspace" "$copy"
-rm -rf "$copy/node_modules" "$copy/dist" "$copy/package.json" "$copy/package-lock.json"
+rm -rf "$copy/node_modules" "$copy/dist"
+[ "$runtime" = ts ] || rm -f "$copy/package.json" "$copy/package-lock.json"
+if [ -n "$own" ]; then
+  # A writable node_modules (ts writes its run folder to node_modules/.cache)
+  # with one link per installed package
+  mkdir "$copy/node_modules"
+  for package in "$own/node_modules"/*; do
+    ln -s "$package" "$copy/node_modules/"
+  done
+fi
 if [ "$runtime" = node ]; then
   # Like `npm start`: the root package.json (module type) and tsconfig.json; a
   # tsconfig.json in the workspace does not count.
@@ -176,7 +210,7 @@ echo
 [ -z "$note" ] || printf '%s\n\n' "$note"
 if [ "$runtime" = ts ]; then
   # One ts --check per file; the status is the last error status
-  SANDBOX_CHDIR="$copy" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$work" "$tools" "$packages" -- \
+  SANDBOX_CHDIR="$copy" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$work" "${readable[@]}" -- \
     timeout 120 bash -c 'status=0; for file in "${@:2}"; do node "$1" --check "$file" || status=$?; done; exit "$status"' \
     check "$ts" "${check[@]}" > "$work/tsc.txt" 2>&1
 else
@@ -186,6 +220,7 @@ else
 fi
 status=$?
 sed -i -e "s#$copy/##g; s#$repo/##g; s#$packages/##g" "$work/tsc.txt"
+[ -z "$own" ] || sed -i -e "s#$own/##g" "$work/tsc.txt"
 if [ "$status" -eq 0 ]; then
   echo "No errors."
 else
@@ -250,11 +285,12 @@ for input in "${inputs[@]}"; do
     echo "Answers for \`prompt()\`, in this order: $answers"
   fi
   echo
-  SANDBOX_CHDIR="$run/repo/$workspace" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$run" "$tools" "$packages" "$out" -- \
+  SANDBOX_CHDIR="$run/repo/$workspace" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$run" "${readable[@]}" "$out" -- \
     timeout 10 "${command[@]}" < "$input" > "$work/run-$number.txt" 2>&1
   status=$?
   sed -i -e "s#$run/repo/$workspace/##g; s#$run/repo/##g; s#$copy/##g; s#$out/##g; s#$packages/##g; s#$tools/##g" \
     -e '/^ *at .*(node:internal\//d; /^ *at node:internal\//d; /^Node\.js v[0-9]/d' "$work/run-$number.txt"
+  [ -z "$own" ] || sed -i -e "s#$own/##g" "$work/run-$number.txt"
   block "$work/run-$number.txt" 80
   case "$status" in
     0) echo "exit code: 0" ;;

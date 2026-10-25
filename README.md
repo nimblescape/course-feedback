@@ -160,7 +160,11 @@ the model never see it.
    defaults of `ts`; then `ts` runs the program, and `prompt()` is global. The
    TypeScript is the one that `ts` installs outside VS Code: the TypeScript of
    the newest VS Code (`ts --install-typescript`, once per run; the log shows
-   the versions). The course needs no `package.json`.
+   the versions). The course needs no `package.json`. A `package.json` in the
+   workspace counts, as it does for `ts`: when the students install a package
+   there with `npm install` (for example in ts-2 chapter 12), the check first
+   installs the packages of the workspace's `package-lock.json`
+   (`npm ci --ignore-scripts`, outside the checkout).
 
    With `runtime: node`, the TypeScript check works like the students'
    `npm start`: it installs the course's own npm packages from its root
