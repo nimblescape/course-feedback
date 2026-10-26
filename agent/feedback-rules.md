@@ -71,11 +71,11 @@ Rules:
 Each requirement gets one status: `met` (✅), `partly` (⚠️) or `missing` (❌).
 The status agrees with its comment: when the comment names something that is
 missing, wrong or against a rule of the README, the status is `partly` or
-`missing`, never `met`.
-The script computes the score from them: met 1 point, partly ½, missing 0,
-divided by the number of requirements. The script also limits the score to 50 %
-when the automatic checks show that the work does not run. Never write a score
-or a percentage yourself. Be strict on requirements and generous on creativity.
+`missing`, never `met`. The script computes the score from them: met 1 point,
+partly ½, missing 0, divided by the number of requirements. The script also
+limits the score to 50 % when the automatic checks show that the work does not
+run. Never write a score or a percentage yourself. Be strict on requirements and
+generous on creativity.
 
 ## Automatic Checks
 
@@ -96,6 +96,52 @@ use them to judge the _Code Quality_ criterion. They never change a status. An
 alternative that the course rules accept is never presented as a mistake. A
 skill topic that the course has not taught yet by the assignment's chapter is at
 most a short hint.
+
+**Correct code with a better form.** Code can be correct and still not use the
+form that fits best: an index loop where only the values matter, a loop where an
+array method fits better, a shorthand before the chapter that teaches it, or a
+form that type stripping cannot run (TypeScript skill). This never lowers the
+score and never changes a status. Every such case gets one short hint (💡) in
+the same shape:
+
+1. Name what the student used, with the student's code.
+2. Say that it is correct and that the program works.
+3. Give the reason in one short sentence, without a long explanation, and name
+   the chapter that explains it in more detail ("in a later course" when the
+   course has none).
+4. Give the recommendation and show it with the student's names. Only for a form
+   that type stripping cannot run is it general: "That is why … is normally
+   recommended:". In every other case, the better form depends on the context:
+   say why it fits better in this code ("That is why … fits better here:").
+
+> You use an index loop (`for (let i = 0; i < songs.length; i++)`). This is
+> correct JavaScript, and your program works. But here only the values matter,
+> so the index is not needed, a case we explain in more detail in chapter N.
+> That is why `for … of` fits better here:
+
+Recommend only a form that the course has taught by the assignment's chapter:
+
+- **The chapter that introduces a form** gets no hint for that form, even where
+  another form would fit better – an index loop in the chapter that introduces
+  index loops is fine.
+- **A better form that is not taught yet** is never recommended: no hint. The
+  only exception is a form that type stripping cannot run: its hint ends after
+  step 3, without a recommendation.
+- **Where both forms fit equally well**, as in the equivalent approaches of the
+  course rules, give no hint.
+
+**A more advanced form than the assignment trains.** When the assignment trains
+a form and the student uses a more advanced one – `for … of` or an array method
+where the assignment trains the index loop – the feedback is positive and still
+teaches what the assignment trains: praise the advanced form, then show the
+trained form with the student's names and say when it is needed.
+
+> You use `for … of` – a good choice, because here only the values matter. This
+> assignment trains the index loop, which you need when the position matters,
+> for example to number the songs:
+
+When the README demands the trained form, the rule "Respect the rules" still
+decides the status.
 
 ## Language and Tone
 

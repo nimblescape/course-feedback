@@ -110,20 +110,46 @@ only when its topic has been taught. -->
 - Modules export only what other files need and contain no `console.log` or
   `prompt()` that runs on import; imports stand at the top, JSR imports before
   own files, paths with `./` and `.ts`.
+
+## Type Stripping
+
+Type stripping (Node.js with `node main.ts`, Vite) only removes the types. Some
+forms of TypeScript create JavaScript code, so type stripping cannot run them:
+an `enum`, a parameter property (`constructor(private name: string)`), a
+`namespace` with code. They are correct TypeScript and never lower the score.
+Handle all of them in the same way:
+
+- **Before the chapter that teaches the form** (in a course that does not teach
+  it: always), give one short hint under Best Practices that does not explain
+  type stripping. It always has the same sentences; for an `enum`:
+
+  > You use an `enum` (`Direction`). This is correct TypeScript, and your
+  > program works. But it is not compatible with type stripping, a concept we
+  > explain in more detail in chapter N. That is why an object constant is
+  > normally recommended:
+
+  For another form, only the form and the recommended form change. Then show the
+  recommended form with the student's names. When the course has not taught the
+  recommended form by the assignment's chapter, leave out the last sentence and
+  the code: the hint ends after "in chapter N". N is the chapter that the course
+  rules name for type stripping; without one, write "in a later course" instead
+  of "in chapter N".
+
+- **The recommended forms:** for an `enum`, an object constant with a type of
+  the same name, `const Direction = { Up: "Up", Down: "Down" } as const;` with
+  `type Direction = (typeof Direction)[keyof typeof Direction];`; for a
+  parameter property, the long form (the field declared in the class, assigned
+  in the constructor); for a `namespace`, a module of its own.
+- **From the chapter that teaches the form on**, accept it without a comment.
+- **In a project that only allows erasable syntax** (a Vite project), these
+  forms fail the build with TS1294, a failed type check: show the recommended
+  form next to the student's code and, when the course has the TypeScript
+  Essentials, name topic 18, TypeScript in Vite Projects.
 - **`import` and `import type` are both correct for a type**: in a program that
   runs with `ts`, accept `import { Song }` and `import type { Song }` without a
   comment. In a Vite project, a type imported without `type` fails the build
   with TS1484, a failed type check: show `import type` next to the student's
-  import and, when the course has the TypeScript Essentials, name topic 18,
-  TypeScript in Vite Projects.
-- **An `enum` is correct TypeScript**: in a program that runs with `ts`, accept
-  it without a comment on type stripping. In a project that only allows erasable
-  syntax (a Vite project), an `enum` fails the build with TS1294, a failed type
-  check: show the object constant next to the student's enum,
-  `const Direction = { Up: "Up", Down: "Down" } as const;` with
-  `type Direction = (typeof Direction)[keyof typeof Direction];`, and, when the
-  course has the TypeScript Essentials, name topic 18, TypeScript in Vite
-  Projects.
+  import and name topic 18 as above.
 
 ## Functions and Methods
 

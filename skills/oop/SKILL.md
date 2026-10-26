@@ -20,14 +20,15 @@ This skill describes the long, explicit form. Where the course rules accept
 TypeScript shorthands – parameter properties, `get`/`set` accessors, `#private`
 fields – they are equally correct.
 
-Parameter properties are never a mistake and never lower the score. Outside the
-chapter that teaches them, give one hint under Best Practices: with `ts`,
-parameter properties are correct TypeScript, but they are not compatible with
-type stripping – a tool that only removes the types, such as Node.js with
-`node main.ts` or Vite, cannot run them – so the long form is normally
-recommended. Show the long form next to the student's constructor. `get`/`set`
-accessors and `#private` fields are JavaScript and work with type stripping;
-they never get this hint.
+Parameter properties are never a mistake and never lower the score. Before the
+chapter that teaches them, they get the short type stripping hint of the
+TypeScript skill (section Type Stripping), for example: "Your constructor uses a
+parameter property (`private name` in the parameter list). This is correct
+TypeScript, and your program works. But it is not compatible with type
+stripping, a concept we explain in more detail in chapter N. That is why the
+long form is normally recommended:", followed by the long form of the student's
+constructor. `get`/`set` accessors and `#private` fields are JavaScript and work
+with type stripping; they never get this hint.
 
 ## Classes and Objects
 
