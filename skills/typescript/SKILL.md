@@ -110,16 +110,14 @@ only when its topic has been taught. -->
 - Modules export only what other files need and contain no `console.log` or
   `prompt()` that runs on import; imports stand at the top, JSR imports before
   own files, paths with `./` and `.ts`.
-- **An `enum` is not a mistake** and never lowers the score. Give one hint under
-  Best Practices: with `ts`, an `enum` is correct TypeScript, but it is not
-  compatible with type stripping – a tool that only removes the types, such as
-  Node.js with `node main.ts` or Vite, cannot run it – so an object constant is
-  normally recommended. Show it next to the student's enum:
+- **An `enum` is correct TypeScript**: in a program that runs with `ts`, accept
+  it without a comment on type stripping. In a project that only allows erasable
+  syntax (a Vite project), an `enum` fails the build with TS1294, a failed type
+  check: show the object constant next to the student's enum,
   `const Direction = { Up: "Up", Down: "Down" } as const;` with
-  `type Direction = (typeof Direction)[keyof typeof Direction];`. When the
+  `type Direction = (typeof Direction)[keyof typeof Direction];`, and, when the
   course has the TypeScript Essentials, name topic 18, TypeScript in Vite
-  Projects. In a project that only allows erasable syntax (a Vite project), an
-  `enum` fails the build with TS1294: that is a failed type check.
+  Projects.
 
 ## Functions and Methods
 
