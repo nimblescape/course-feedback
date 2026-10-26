@@ -14,12 +14,12 @@
 # The course file .github/feedback.yml says how the students run their code:
 #   runtime: ts              exactly as the students' `ts main.ts` (the command
 #                            ts of nimblescape TypeScript, exact version of
-#                            ts/package-lock.json): `ts --check` checks with the
+#                            ts/package-lock.json): `ts check` checks with the
 #                            nearest tsconfig.json or the defaults of ts, then
 #                            ts runs main.ts; prompt() is global. TypeScript:
 #                            the one that ts installs outside VS Code, the
 #                            TypeScript of the newest VS Code
-#                            (ts --install-typescript, once per run). A
+#                            (ts install --global, once per run). A
 #                            package.json in the workspace counts, as for ts:
 #                            the packages of its package-lock.json are
 #                            installed like the students' `npm install`.
@@ -73,7 +73,7 @@ if [ "$runtime" = ts ]; then
   packages=$(install_tools "$here/ts" ts)
   ts="$packages/node_modules/@nimblescape/typescript/dist/ts.js"
   if [ -f "$ts" ] && [ ! -f "$packages/.typescript" ]; then
-    { node "$ts" --install-typescript && node "$ts" --version; } < /dev/null >&2 && touch "$packages/.typescript"
+    { node "$ts" install --global && node "$ts" --version; } < /dev/null >&2 && touch "$packages/.typescript"
   fi
   if [ ! -f "$packages/.typescript" ]; then
     echo "The command \`ts\` or its TypeScript could not be installed: no automatic check."
@@ -164,12 +164,12 @@ browser=false
 [ ! -f "$copy/index.html" ] || browser=true
 
 if [ "$runtime" = ts ]; then
-  # ts --check checks one file and what it imports
+  # ts check checks one file and what it imports
   check=()
   for entry in "${entries[@]}"; do
     check+=("${entry#"$copy/"}")
   done
-  heading="### Type check (\`ts --check\`, like the students' \`ts main.ts\`)"
+  heading="### Type check (\`ts check\`, like the students' \`ts main.ts\`)"
 elif [ "$runtime" = node ]; then
   # The course's root tsconfig.json, limited to the files of this workspace
   files=$(printf '%s\n' "${entries[@]}" | jq -R . | jq -s .)
@@ -209,9 +209,9 @@ echo "$heading"
 echo
 [ -z "$note" ] || printf '%s\n\n' "$note"
 if [ "$runtime" = ts ]; then
-  # One ts --check per file; the status is the last error status
+  # One ts check per file; the status is the last error status
   SANDBOX_CHDIR="$copy" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$work" "${readable[@]}" -- \
-    timeout 120 bash -c 'status=0; for file in "${@:2}"; do node "$1" --check "$file" || status=$?; done; exit "$status"' \
+    timeout 120 bash -c 'status=0; for file in "${@:2}"; do node "$1" check "$file" || status=$?; done; exit "$status"' \
     check "$ts" "${check[@]}" > "$work/tsc.txt" 2>&1
 else
   SANDBOX_CHDIR="$copy" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$work" "$tools" "$packages" -- \
