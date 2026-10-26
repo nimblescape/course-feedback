@@ -322,10 +322,10 @@ console.log(`Hello ${name}! Twice your number is ${readFileSync("twice.txt", "ut
 console.log(`Random: ${Math.random()}`);'
 run changed good
 expect "run succeeds" exit_code 0
-expect "ts from its package-lock.json (0.2.1)" \
-  bash -c "grep -q '\"version\": \"0.2.1\"' '$T'/runner/feedback-tools/ts/node_modules/@nimblescape/typescript/package.json"
-expect "log: ts installed TypeScript and names the versions" bash -c "grep -q '^ts 0.2.1' '$T/run.log' && grep -q '^TypeScript [0-9.]* (global' '$T/run.log'"
-expect "prompt: ts --check" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF '(\`ts --check\`, like the students'\'' \`ts main.ts\`)'"
+expect "ts from its package-lock.json (0.3.0)" \
+  bash -c "grep -q '\"version\": \"0.3.0\"' '$T'/runner/feedback-tools/ts/node_modules/@nimblescape/typescript/package.json"
+expect "log: ts installed TypeScript and names the versions" bash -c "grep -q '^ts 0.3.0' '$T/run.log' && grep -q '^TypeScript [0-9.]* (global' '$T/run.log'"
+expect "prompt: ts check" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF '(\`ts check\`, like the students'\'' \`ts main.ts\`)'"
 expect "prompt: no errors" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.'"
 expect "prompt: global prompt() echoes the piped answer" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Your name? Mia'"
 expect "prompt: node:fs" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Hello Mia! Twice your number is 6.'"

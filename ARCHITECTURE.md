@@ -90,9 +90,9 @@ and the student programs.
   - `runtime: ts`: exactly as the students' `ts main.ts`. The command `ts` of
     nimblescape TypeScript comes from
     [`ts/package-lock.json`](skills/typescript/ts/package-lock.json) (`npm ci
-    --ignore-scripts`); once per run, `ts --install-typescript` installs the
+    --ignore-scripts`); once per run, `ts install --global` installs the
     TypeScript that `ts` uses outside VS Code (the TypeScript of the newest VS
-    Code) globally, and the log shows the versions. `ts --check` checks
+    Code) globally, and the log shows the versions. `ts check` checks
     `main.ts` and its imports with the nearest `tsconfig.json` (the workspace,
     then the course root) or the defaults of `ts`, then `ts main.ts` runs the
     program with the global `prompt()`. Node.js takes `seed-random.mjs` from

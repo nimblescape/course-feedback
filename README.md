@@ -155,11 +155,11 @@ the model never see it.
    [nimblescape TypeScript](https://www.npmjs.com/package/@nimblescape/typescript),
    in the exact version of
    [`skills/typescript/ts/package-lock.json`](skills/typescript/ts/package-lock.json)):
-   `ts --check` checks `main.ts` and its imports with the nearest
+   `ts check` checks `main.ts` and its imports with the nearest
    `tsconfig.json` (the workspace, then the course root) or, without one, the
    defaults of `ts`; then `ts` runs the program, and `prompt()` is global. The
    TypeScript is the one that `ts` installs outside VS Code: the TypeScript of
-   the newest VS Code (`ts --install-typescript`, once per run; the log shows
+   the newest VS Code (`ts install --global`, once per run; the log shows
    the versions). The course needs no `package.json`. A `package.json` in the
    workspace counts, as it does for `ts`: when the students install a package
    there with `npm install` (for example in ts-2 chapter 12), the check first
