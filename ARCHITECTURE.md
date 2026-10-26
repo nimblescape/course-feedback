@@ -114,12 +114,16 @@ and the student programs.
   ([`seed-random.mjs`](skills/typescript/tools/seed-random.mjs)).
 
   A workspace that is its own npm project (its `package.json` is in the
-  template copy of the class repository, for example a Vite game) gets
-  `npm run check` of the project instead
+  template copy of the class repository, for example a Vite project) gets
+  `npm run build` of the project instead
   ([`check-project.sh`](skills/typescript/check-project.sh)): `package.json`,
-  `package-lock.json` and `tsconfig.json` in the version of the template copy
-  (a student change gets a note), `npm ci --ignore-scripts`, the check in the
-  sandbox, not run. A `package.json` that a student adds is ignored.
+  `package-lock.json`, `tsconfig*.json`, `jsconfig*.json` and `vite.config.*`
+  in the version of the template copy (a student change gets a note, a
+  configuration file that a student adds is ignored), `npm ci --ignore-scripts`,
+  a writable `node_modules` with one link per package (`tsc -b` and Vite write
+  to it), the build in the sandbox, not run. A failing build caps the score
+  (reason `build`). In a workspace without a `package.json` of the template, a
+  `package.json` that a student adds is ignored.
 
 - `html`: `index.html` exists and links a stylesheet of the workspace;
   `html-validate` with the presets the students see in VS Code.
