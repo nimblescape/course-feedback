@@ -110,6 +110,12 @@ only when its topic has been taught. -->
 - Modules export only what other files need and contain no `console.log` or
   `prompt()` that runs on import; imports stand at the top, JSR imports before
   own files, paths with `./` and `.ts`.
+- **`import` and `import type` are both correct for a type**: in a program that
+  runs with `ts`, accept `import { Song }` and `import type { Song }` without a
+  comment. In a Vite project, a type imported without `type` fails the build
+  with TS1484, a failed type check: show `import type` next to the student's
+  import and, when the course has the TypeScript Essentials, name topic 18,
+  TypeScript in Vite Projects.
 - **An `enum` is correct TypeScript**: in a program that runs with `ts`, accept
   it without a comment on type stripping. In a project that only allows erasable
   syntax (a Vite project), an `enum` fails the build with TS1294, a failed type
