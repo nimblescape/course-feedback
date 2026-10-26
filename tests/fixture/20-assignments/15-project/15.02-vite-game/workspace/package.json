@@ -3,9 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "tsc --noEmit"
+    "dev": "vite",
+    "build": "tsc -b && vite build"
   },
   "devDependencies": {
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vite": "^8.3.5"
   }
 }

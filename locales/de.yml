@@ -22,6 +22,7 @@ capped: "Die Arbeit läuft noch nicht ({reasons}), daher höchstens 50 %."
 # Reasons of the automatic checks for "does not run"
 reasons:
   typecheck: die Typprüfung meldet Fehler
+  build: "`npm run build` meldet Fehler"
   crash: das Programm bricht beim Beispiellauf ab
   timeout: das Programm endet beim Beispiellauf nicht
   no-page: "`index.html` fehlt"

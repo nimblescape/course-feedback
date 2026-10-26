@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Automatic check of a workspace that is its own npm project (for example the
-# Vite game of oop-2 15.01): `npm run check` of the project, as the students run
-# it, with the project's own npm packages. Prints Markdown facts for the prompt
-# (see scripts/check-lib.sh).
+# Automatic check of a workspace that is its own npm project (a Vite project,
+# for example the game of oop-2 15.01 or the React projects of react-2):
+# `npm run build` of the project, as the students run it before every push, with
+# the project's own npm packages. The build script of a standard Vite project
+# type-checks first (`tsc && vite build` or `tsc -b && vite build`). Prints
+# Markdown facts for the prompt (see scripts/check-lib.sh).
 #
 # Usage: check-project.sh <assignment-path> <commit>   (called by check.sh)
 #
 # <commit> is the template copy of the class repository (its newest root
-# commit). package.json, package-lock.json and tsconfig.json lie in the
-# student-writable workspace, so they count in the version of that commit: the
-# template sync never changes workspace files later.
+# commit). The configuration of the project (package.json, package-lock.json,
+# tsconfig*.json, jsconfig*.json, vite.config.*) lies in the student-writable
+# workspace, so it counts in the version of that commit: the template sync never
+# changes workspace files later.
 
 set -uo pipefail
 
@@ -26,20 +29,34 @@ mkdir -p "$work"
 cp -r "$workspace" "$copy"
 rm -rf "$copy/node_modules" "$copy/dist"
 
+configuration() {
+  case "$1" in
+    package.json | package-lock.json | tsconfig*.json | jsconfig*.json | vite.config.*) return 0 ;;
+  esac
+  return 1
+}
+
 notes=()
-for file in package.json package-lock.json tsconfig.json; do
+for path in "$copy"/*; do
+  file=$(basename "$path")
+  if [ -f "$path" ] && configuration "$file" && ! git cat-file -e "$root:$workspace/$file" 2>/dev/null; then
+    rm -f "$path"
+    notes+=("The student added \`workspace/$file\`: the check ignores it.")
+  fi
+done
+while IFS= read -r file; do
+  configuration "$file" || continue
   rm -f "$copy/$file"
-  git cat-file -e "$root:$workspace/$file" 2>/dev/null || continue
   git show "$root:$workspace/$file" > "$copy/$file"
   # The lock file changes with every `npm install`: no note for it
   if [ "$file" != package-lock.json ] && ! git diff --quiet "$root" HEAD -- "$workspace/$file"; then
     notes+=("The student changed \`workspace/$file\`: the check uses the course's version.")
   fi
-done
+done < <(git ls-tree --name-only "$root:$workspace")
 
-script=$(jq -r '.scripts.check // empty' "$copy/package.json" 2>/dev/null)
+script=$(jq -r '.scripts.build // empty' "$copy/package.json" 2>/dev/null)
 if [ -z "$script" ]; then
-  echo "The workspace is its own npm project without a \`check\` script: no automatic check."
+  echo "The workspace is its own npm project without a \`build\` script: no automatic check."
   exit 0
 fi
 if [ ! -f "$copy/package-lock.json" ]; then
@@ -57,16 +74,22 @@ if [ ! -f "$packages/.installed" ]; then
   echo "The project's npm packages could not be installed (\`npm ci\` with its \`package-lock.json\`): no automatic check."
   exit 0
 fi
-ln -s "$packages/node_modules" "$copy/node_modules"
+# A writable node_modules with one link per installed package and npm's bin
+# folder: `tsc -b` writes its build information to node_modules/.tmp, and Vite
+# bundles vite.config.ts to node_modules/.vite-temp
+mkdir "$copy/node_modules"
+for package in "$packages/node_modules"/* "$packages/node_modules"/.bin; do
+  [ ! -e "$package" ] || ln -s "$package" "$copy/node_modules/"
+done
 
-echo "### Type check (\`npm run check\` of the project: \`$script\`)"
+echo "### Build (\`npm run build\` of the project: \`$script\`)"
 echo
 for note in "${notes[@]}"; do
   echo "$note"
   echo
 done
 SANDBOX_CHDIR="$copy" bash "$FEEDBACK_CENTRAL/scripts/sandbox.sh" "$work" "$packages" -- \
-  timeout 120 npm run check --silent --no-update-notifier > "$work/check.txt" 2>&1
+  timeout 120 npm run build --silent --no-update-notifier > "$work/check.txt" 2>&1
 status=$?
 sed -i -e "s#$copy/##g; s#$packages/##g" "$work/check.txt"
 if [ "$status" -eq 0 ]; then
@@ -74,7 +97,7 @@ if [ "$status" -eq 0 ]; then
 else
   block "$work/check.txt" 40
   echo "exit code: $status"
-  does_not_run typecheck
+  does_not_run build
 fi
 echo
-echo "The work is its own npm project: it was checked with \`npm run check\`, not run."
+echo "The work is its own npm project: it was built with \`npm run build\` (the type check, then the build), not run."

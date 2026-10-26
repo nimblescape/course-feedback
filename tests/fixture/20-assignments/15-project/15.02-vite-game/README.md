@@ -1,6 +1,6 @@
 # Aufgabe
 
-**Vite Game** – Ein eigenes npm-Projekt (wie ein Vite-Spiel) zeigt den Punktestand.
+**Vite Game** – Ein Vite-Projekt zeigt den Punktestand.
 
 ## Anforderungen
 

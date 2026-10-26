@@ -262,14 +262,14 @@ const score = new Score();
 score.add(3);
 document.querySelector("#score")!.textContent = `${score.getPoints()}`;'
 run changed good
-expect "own npm project of the course: npm run check, no errors" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF '(\`npm run check\` of the project: \`tsc --noEmit\`)' && last_prompt | grep -q 'No errors.' && last_prompt | grep -q 'checked with .npm run check., not run'"
+expect "own npm project of the course: npm run build, no errors" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF '(\`npm run build\` of the project: \`tsc -b && vite build\`)' && last_prompt | grep -q 'No errors.' && last_prompt | grep -q 'built with .npm run build. (the type check, then the build), not run'"
 expect "own npm project: its lock file installed (TypeScript 6.0.3)" \
   bash -c "grep -q '\"version\": \"6.0.3\"' '$T'/runner/feedback-tools/project-*/node_modules/typescript/package.json"
 student "$PROJECT/workspace/main.ts" 'const points: number = "three";
 document.querySelector("#score")!.textContent = `${points}`;'
 run changed good
 expect "own npm project: type error reported and capped" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'TS2322'"
-expect "own npm project: type error caps the score" contains "$PROJECT/FEEDBACK.md" "die Typprüfung meldet Fehler"
+expect "own npm project: type error caps the score" contains "$PROJECT/FEEDBACK.md" "\`npm run build\` meldet Fehler"
 student "$PROJECT/workspace/tsconfig.json" '{ "compilerOptions": { "strict": false, "noEmit": true, "lib": ["ES2023", "DOM"] } }'
 student "$PROJECT/workspace/main.ts" 'function twice(value) {
   return value * 2;
@@ -277,9 +277,23 @@ student "$PROJECT/workspace/main.ts" 'function twice(value) {
 document.querySelector("#score")!.textContent = `${twice(2)}`;'
 run changed good
 expect "own npm project: student change of tsconfig.json (note), course version used" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The student changed .workspace/tsconfig.json.: the check uses the course' && last_prompt | grep -q 'TS7006'"
-student "$PROJECT/workspace/package.json" '{ "private": true, "scripts": { "check": "echo ok" } }'
+student "$PROJECT/workspace/package.json" '{ "private": true, "scripts": { "build": "echo ok" } }'
 run changed good
-expect "own npm project: student change of the check script (note), course script used" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The student changed .workspace/package.json.' && last_prompt | grep -q 'TS7006'"
+expect "own npm project: student change of the build script (note), course script used" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The student changed .workspace/package.json.' && last_prompt | grep -q 'TS7006'"
+student "$PROJECT/workspace/main.ts" 'const points: number = 3;
+document.querySelector("#score")!.textContent = `${points}`;'
+student "$PROJECT/workspace/index.html" '<!doctype html>
+<html lang="de">
+  <body>
+    <p id="score"></p>
+    <script type="module" src="./missing.ts"></script>
+  </body>
+</html>'
+student "$PROJECT/workspace/vite.config.ts" 'export default { build: { emptyOutDir: false } };'
+run changed good
+expect "own npm project: the type check passes, the Vite build fails and is reported" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Failed to resolve ./missing.ts from index.html' && ! last_prompt | grep -q 'No errors.'"
+expect "own npm project: a failing Vite build caps the score" contains "$PROJECT/FEEDBACK.md" "\`npm run build\` meldet Fehler"
+expect "own npm project: configuration added by the student ignored (note)" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The student added .workspace/vite.config.ts.: the check ignores it.'"
 student "$TS/workspace/main.ts" 'import { prompt } from "@majikmate/ts-utils";
 while (true) {
   const answer = prompt("Again?");
