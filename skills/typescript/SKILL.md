@@ -47,6 +47,9 @@ only when its topic has been taught. -->
   module (`const pricePerPizza = 9.5;`, `const maxAttempts = 3;`). A
   `private static readonly` member that only its own class uses follows the same
   rule.
+- **An object constant used as an enum is PascalCase**, named like its type:
+  `const Direction = { Up: "Up", Down: "Down" } as const;` with
+  `type Direction = (typeof Direction)[keyof typeof Direction];`.
 - A name in the wrong case is a hint, never a mistake. When it is not clear
   whether a value is a real constant, accept both cases.
 - Named values instead of repeated magic numbers (`const maxAttempts = 3;`,
