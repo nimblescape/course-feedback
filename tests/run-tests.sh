@@ -55,7 +55,6 @@ TS=20-assignments/04-input/04.01-greeting
 HTML=20-assignments/30-css-basics/30.01-card
 GAME=20-assignments/15-project/15.01-game
 PROJECT=20-assignments/15-project/15.02-vite-game
-TS_PROJECT=20-assignments/15-project/15.03-ts-game
 
 student() { # <file> <content>
   git reset -q --hard origin/main
@@ -374,30 +373,6 @@ student "$TS/workspace/main.ts" 'import { green } from "yoctocolors";
 console.log(green("no lock"));'
 run changed good
 expect "workspace package.json without package-lock.json: note, not installed" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'there is no .workspace/package-lock.json.' && last_prompt | grep -q 'yoctocolors'"
-# An own npm project of the course whose check script is ts --check (the Vite
-# game of oop-2): ts on the PATH, its run folder in node_modules/.cache
-student "$TS_PROJECT/workspace/main.ts" 'class Health {
-  private points = 3;
-
-  lose(): void {
-    this.points -= 1;
-  }
-
-  getPoints(): number {
-    return this.points;
-  }
-}
-
-const health = new Health();
-health.lose();
-document.querySelector("#health")!.textContent = `${health.getPoints()}`;'
-run changed good
-expect "own npm project with ts --check: ts found, no errors" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF '(\`npm run check\` of the project: \`ts --check\`)' && last_prompt | grep -q 'No errors.' && last_prompt | grep -q 'checked with .npm run check., not run'"
-student "$TS_PROJECT/workspace/main.ts" 'const points: number = "three";
-document.querySelector("#health")!.textContent = `${points}`;'
-run changed good
-expect "own npm project with ts --check: type error, short path" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^main.ts(1,7): error TS2322'"
-expect "own npm project with ts --check: type error caps the score" contains "$TS_PROJECT/FEEDBACK.md" "die Typprüfung meldet Fehler"
 echo
 echo "$PASSED passed, $FAILED failed (logs in $T)"
 [ "$FAILED" -eq 0 ]

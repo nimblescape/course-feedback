@@ -119,10 +119,7 @@ and the student programs.
   ([`check-project.sh`](skills/typescript/check-project.sh)): `package.json`,
   `package-lock.json` and `tsconfig.json` in the version of the template copy
   (a student change gets a note), `npm ci --ignore-scripts`, the check in the
-  sandbox, not run. A `package.json` that a student adds is ignored. With
-  `runtime: ts`, the command ts is on the PATH of the check (a check script
-  `ts --check`). `node_modules` is a writable folder with one link per
-  installed package, because ts writes its run folder to `node_modules/.cache`.
+  sandbox, not run. A `package.json` that a student adds is ignored.
 
 - `html`: `index.html` exists and links a stylesheet of the workspace;
   `html-validate` with the presets the students see in VS Code.

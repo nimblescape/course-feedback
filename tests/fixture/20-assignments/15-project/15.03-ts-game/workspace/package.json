@@ -1,8 +1,0 @@
-{
-  "name": "ts-game",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "check": "ts --check"
-  }
-}

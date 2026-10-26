@@ -176,10 +176,9 @@ the model never see it.
 
    A workspace that is its own npm project (a `package.json` of the template,
    for example a Vite game) gets `npm run check` of the project instead, with
-   its own `package-lock.json`, in every runtime. The project needs a `check`
-   script (for example `tsc --noEmit`, or `ts --check` with `runtime: ts`: the
-   command ts is on the PATH of the check, as in the students' terminal).
-   Students should install with `npm ci`, which keeps the lock file unchanged.
+   its own `package-lock.json`, in both runtimes. The project needs a `check`
+   script (for example `tsc --noEmit`). Students should install with `npm ci`,
+   which keeps the lock file unchanged.
 
 3. Add `.github/instructions/feedback-course.instructions.md` with the course
    rules: students, language and tone, README sections, what the automatic

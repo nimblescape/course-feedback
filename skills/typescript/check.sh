@@ -22,9 +22,7 @@
 #                            (ts --install-typescript, once per run). A
 #                            package.json in the workspace counts, as for ts:
 #                            the packages of its package-lock.json are
-#                            installed like the students' `npm install`. The
-#                            check script of an own npm project of the course
-#                            finds ts on the PATH (check-project.sh).
+#                            installed like the students' `npm install`.
 #   runtime: node            exactly as the students' `npm start`: the course's
 #                            own npm packages (package-lock.json: TypeScript,
 #                            tsx, @majikmate/ts-utils, …), tsc with a tsconfig
@@ -57,6 +55,18 @@ out="$work/out"
 rm -rf "$work"
 mkdir -p "$repo/$assignment" "$out"
 
+# A workspace that is its own npm project (Vite): a package.json of the course,
+# i.e. in the template copy of the class repository (its newest root commit)
+root=$(git rev-list --max-parents=0 HEAD | head -n 1)
+if git cat-file -e "$root:$workspace/package.json" 2>/dev/null; then
+  exec bash "$here/check-project.sh" "$assignment" "$root"
+fi
+note=""
+if [ -f "$workspace/package.json" ] && [ "$runtime" != ts ]; then
+  note="\`workspace/package.json\` is not a file of the course: the check ignores it."
+fi
+
+tools=$(install_tools "$here/tools" typescript)
 if [ "$runtime" = ts ]; then
   # The command ts and, once per run, the TypeScript that ts installs globally
   # (the versions go to the log)
@@ -69,26 +79,7 @@ if [ "$runtime" = ts ]; then
     echo "The command \`ts\` or its TypeScript could not be installed: no automatic check."
     exit 0
   fi
-fi
-
-# A workspace that is its own npm project (Vite): a package.json of the course,
-# i.e. in the template copy of the class repository (its newest root commit).
-# With runtime: ts, its check script finds ts on the PATH, as in the students'
-# terminal.
-root=$(git rev-list --max-parents=0 HEAD | head -n 1)
-if git cat-file -e "$root:$workspace/package.json" 2>/dev/null; then
-  if [ "$runtime" = ts ]; then
-    exec bash "$here/check-project.sh" "$assignment" "$root" "$packages"
-  fi
-  exec bash "$here/check-project.sh" "$assignment" "$root"
-fi
-note=""
-if [ -f "$workspace/package.json" ] && [ "$runtime" != ts ]; then
-  note="\`workspace/package.json\` is not a file of the course: the check ignores it."
-fi
-
-tools=$(install_tools "$here/tools" typescript)
-if [ "$runtime" = node ]; then
+elif [ "$runtime" = node ]; then
   # The course's own npm packages in the exact versions of its package-lock.json
   # (a course file), like `npm ci`, installed outside the checkout without
   # install scripts
@@ -100,7 +91,7 @@ if [ "$runtime" = node ]; then
   cp package.json package-lock.json "$work/npm/"
   key=$(cat package.json package-lock.json | sha256sum | cut -c 1-16)
   packages=$(install_tools "$work/npm" "course-$key")
-elif [ "$runtime" != ts ]; then
+else
   packages="$tools"
 fi
 # runtime: ts and a package.json in the workspace (npm install of the student,
