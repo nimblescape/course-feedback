@@ -387,6 +387,114 @@ student "$TS/workspace/main.ts" 'import { green } from "yoctocolors";
 console.log(green("no lock"));'
 run changed good
 expect "workspace package.json without package-lock.json: note, not installed" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'there is no .workspace/package-lock.json.' && last_prompt | grep -q 'yoctocolors'"
+
+echo "11. JavaScript without a build: syntax check, Node.js run, JavaScript skill"
+JS=20-assignments/01-dom/01.01-menu
+NODE=20-assignments/03-node/03.01-printer
+student "$JS/workspace/main.js" 'const dishes = ["Pizza", "Pasta"];
+const menu = document.querySelector("#menu");
+if (menu === null) {
+  throw new Error("No element matches #menu.");
+}
+for (const dish of dishes) {
+  const item = document.createElement("li");
+  item.textContent = dish;
+  menu.append(item);
+}'
+run changed good
+expect "page: javascript, html and css skills, no typescript skill" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^## Skill: javascript' && last_prompt | grep -q '^## Skill: html' && ! last_prompt | grep -q '^## Skill: typescript'"
+expect "page: syntax check passed, not run" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors in .main.js.' && last_prompt | grep -q 'checked for syntax errors, not run in a browser'"
+expect "page: not capped" contains "$JS/FEEDBACK.md" "**Ergebnis: 100 %**"
+student "$JS/workspace/main.js" 'const menu: HTMLElement | null = document.querySelector("#menu");
+console.log(menu);'
+run changed good
+expect "type annotation in a .js file: syntax error" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'SyntaxError' && last_prompt | grep -q '^main.js:1$'"
+expect "syntax error caps the score" contains "$JS/FEEDBACK.md" "eine JavaScript-Datei hat einen Syntaxfehler"
+student "$NODE/workspace/main.js" 'const dishes = ["Pizza"];
+console.log("<ul>");
+for (const dish of dishes) {
+  console.log(`  <li>${dish}</li>`);
+}
+console.log("</ul>");
+console.log(`Random: ${Math.random()}`);'
+run changed good
+expect "Node.js program: javascript skill only" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^## Skill: javascript' && ! last_prompt | grep -q '^## Skill: html'"
+expect "Node.js program: run with node main.js, seeded" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '  <li>Pizza</li>' && last_prompt | grep -q 'Random: 0.28407089272513986' && last_prompt | grep -q 'exit code: 0'"
+student "$NODE/workspace/main.js" 'function fail() {
+  throw new Error("boom");
+}
+fail();'
+run changed good
+expect "Node.js program: crash with a short path, capped" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^    at fail (main.js:2:9)' && ! last_prompt | grep -q 'node:internal'"
+expect "Node.js program: crash caps the score" contains "$NODE/FEEDBACK.md" "das Programm bricht beim Beispiellauf ab"
+
+echo "12. React: the React skill, a stylesheet imported by main.tsx, lint facts, a README in parts"
+REACT=20-assignments/16-react/16.01-counter
+student "$REACT/workspace/src/app.tsx" 'import { useState } from "react";
+
+// The count starts at 0 and grows with every click.
+export function App() {
+  const [count, setCount] = useState(0);
+
+  function handleClick() {
+    setCount((c) => c + 1);
+  }
+
+  return (
+    <main className="counter">
+      <button type="button" onClick={handleClick}>
+        {count}
+      </button>
+    </main>
+  );
+}'
+run changed good
+expect "React project: react, typescript, html and css skills" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^## Skill: react' && last_prompt | grep -q '^## Skill: typescript' && last_prompt | grep -q '^## Skill: html'"
+expect "React project: the stylesheet imported by src/main.tsx counts" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF 'Stylesheets imported by modules: \`src/index.css\` (in \`src/main.tsx\`)'"
+expect "React project: build and lint without problems" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF '(\`npm run build\` of the project: \`tsc -b && vite build\`)' && last_prompt | grep -q 'No errors.' && last_prompt | grep -qF '### Lint (\`npm run lint\` of the project: \`oxlint\`)' && last_prompt | grep -q 'No problems.'"
+expect "React project: not capped" contains "$REACT/FEEDBACK.md" "**Ergebnis: 100 %**"
+expect "README in parts: the checklists of the parts are the requirements" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^- R1 (Teil A – Der Fehler): Ein Kommentar' && last_prompt | grep -q '^- R3 (Teil B – Der Zähler › Code): Die Zahl ist ein State'"
+student "$REACT/workspace/src/app.tsx" 'import { useState } from "react";
+
+export function App() {
+  const [count, setCount] = useState(0);
+
+  function handleClick() {
+    const [clicks, setClicks] = useState(0);
+    setClicks(clicks + 1);
+    setCount(count + 1);
+  }
+
+  return (
+    <main className="counter">
+      <button type="button" onClick={handleClick}>
+        {count}
+      </button>
+    </main>
+  );
+}'
+run changed good
+expect "React project: lint reports the hook in a handler, one line per problem" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^src/app.tsx:7:[0-9]*: React Hook \"useState\" is called in function \"handleClick\".*rules-of-hooks' && ! last_prompt | grep -q '^Finished in'"
+expect "React project: lint never caps the score" test "$(count "$REACT/FEEDBACK.md" "**Ergebnis: 100 %**")" = 2
+student "$REACT/workspace/src/main.tsx" 'import { createRoot } from "react-dom/client";
+import { App } from "./app.tsx";
+
+createRoot(document.querySelector("#root")!).render(<App />);'
+run changed good
+expect "React project: without the import of the stylesheet, capped" contains "$REACT/FEEDBACK.md" "das Stylesheet ist nicht eingebunden"
+
+echo "13. An npm project that the student set up (no package.json in the template)"
+student "$GAME/workspace/package.json" "$(cat "$CENTRAL/tests/fixture/$PROJECT/workspace/package.json")"
+student "$GAME/workspace/package-lock.json" "$(cat "$CENTRAL/tests/fixture/$PROJECT/workspace/package-lock.json")"
+student "$GAME/workspace/tsconfig.json" "$(cat "$CENTRAL/tests/fixture/$PROJECT/workspace/tsconfig.json")"
+student "$GAME/workspace/main.ts" 'const state: string = "Won";
+document.querySelector("#state")!.textContent = state;'
+run changed good
+expect "own npm project of the student: npm run build with the student's configuration" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'The student set up this npm project' && last_prompt | grep -qF '(\`npm run build\` of the project: \`tsc -b && vite build\`)' && last_prompt | grep -q 'No errors.'"
+student "$GAME/workspace/main.ts" 'const state: number = "Won";
+document.querySelector("#state")!.textContent = `${state}`;'
+run changed good
+expect "own npm project of the student: a type error caps the score" contains "$GAME/FEEDBACK.md" "\`npm run build\` meldet Fehler"
 echo
 echo "$PASSED passed, $FAILED failed (logs in $T)"
 [ "$FAILED" -eq 0 ]

@@ -56,12 +56,14 @@ The best practices of each technology are skills in the
 can combine. The script selects them by the files of the work; a course does not
 list them.
 
-| Skill        | Selected for                                | Check script                                    |
-| ------------ | ------------------------------------------- | ----------------------------------------------- |
-| `typescript` | `*.ts *.tsx *.mts`                          | `tsc` type check, program runs with Node.js     |
-| `oop`        | `.ts` or `.md` files with a class/interface | –                                               |
-| `html`       | `*.html *.htm`                              | page renders (stylesheet linked), html-validate |
-| `css`        | `*.css`                                     | –                                               |
+| Skill        | Selected for                                    | Check script                                                                                  |
+| ------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `typescript` | `*.ts *.tsx *.mts`                              | `tsc` type check, program runs with Node.js; npm projects: `npm run build` and `npm run lint` |
+| `javascript` | `*.js *.mjs *.cjs`                              | `node --check` syntax check, `node main.js` for a Node.js program                             |
+| `react`      | script files that import `react` or `react-dom` | – (the npm project check of `typescript`)                                                     |
+| `oop`        | `.ts` or `.md` files with a class/interface     | –                                                                                             |
+| `html`       | `*.html *.htm`                                  | page renders (stylesheet linked or imported), html-validate                                   |
+| `css`        | `*.css`                                         | –                                                                                             |
 
 A skill is a folder `skills/<name>/` with:
 
@@ -78,10 +80,9 @@ A skill is a folder `skills/<name>/` with:
 - optionally `tools/` with `package.json` and `package-lock.json`: the tools of
   the check with exact versions, installed once per run with `npm ci`.
 
-A new technology (for example React) is a new skill folder. A course can also
-bring its own skill in `.github/feedback-skills/<name>/` (same structure); it
-replaces a central skill of the same name. Move it here when a second course
-needs it.
+A new technology is a new skill folder. A course can also bring its own skill
+in `.github/feedback-skills/<name>/` (same structure); it replaces a central
+skill of the same name. Move it here when a second course needs it.
 
 ## Security
 
@@ -182,7 +183,11 @@ the model never see it.
    project counts in the version of the template (`package.json`,
    `package-lock.json`, `tsconfig*.json`, `jsconfig*.json`, `vite.config.*`).
    The check installs the exact versions of the course's `package-lock.json`,
-   also when students ran `npm install`.
+   also when students ran `npm install`. With a `lint` script, `npm run lint`
+   runs too; its problems are facts for the feedback and never cap the score.
+   When the README asks the students to set up the npm project themselves (no
+   `package.json` in the template), the check builds it with the student's own
+   `package.json`, `package-lock.json` and configuration.
 
 3. Add `.github/instructions/feedback-course.instructions.md` with the course
    rules: students, language and tone, README sections, what the automatic

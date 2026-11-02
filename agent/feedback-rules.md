@@ -152,7 +152,8 @@ decides the status.
 - Technical terms of JavaScript, HTML and CSS are the terms of MDN Web Docs
   (developer.mozilla.org). Where the course material uses another term, use the
   MDN term: for example template literal, type selector, selector list,
-  next-sibling combinator.
+  next-sibling combinator. Terms that only React has are the terms of react.dev:
+  component, props, state, hook, effect, key.
 - Code examples use English identifiers, English comments and real code of the
   course, written in the course conventions.
 - Keep it compact: one sentence per requirement and criterion.

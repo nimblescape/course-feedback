@@ -142,14 +142,16 @@ def section(readme, names):
     return ""
 
 
-def requirements(readme, names):
-    """The checklist items of the requirements section: (group, text)."""
-    items, group, current = [], "", None
-    for line in section(readme, names).splitlines():
+def checklist(text, part=""):
+    """The checklist items of a text: (group, text). The group is the last
+    level-3 heading, after the name of the part when there is one."""
+    items, group, current = [], part, None
+    for line in text.splitlines():
         heading = re.match(r"^###+ (.+)", line)
         item = re.match(r"^- \[[ xX]\] (.*)", line)
         if heading:
-            group, current = heading.group(1).strip(), None
+            group = f"{part} › {heading.group(1).strip()}" if part else heading.group(1).strip()
+            current = None
         elif item:
             current = [item.group(1)]
             items.append((group, current))
@@ -158,6 +160,19 @@ def requirements(readme, names):
         else:
             current = None
     return [(group, "\n".join(lines).strip()) for group, lines in items]
+
+
+def requirements(readme, names):
+    """The checklist items of the requirements section: (group, text). A README
+    in parts (`## Part A – …`, `## Part B – …`) has no requirements section:
+    then the checklists of its level-2 sections are the requirements, grouped
+    by part."""
+    items = checklist(section(readme, names))
+    if items:
+        return items
+    for match in re.finditer(r"^## ([^\n]+?)[ \t]*\n(.*?)(?=^## |\Z)", readme, re.M | re.S):
+        items += checklist(match.group(2), match.group(1).strip())
+    return items
 
 
 def criteria(readme, names):
