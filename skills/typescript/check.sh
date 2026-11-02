@@ -61,6 +61,13 @@ root=$(git rev-list --max-parents=0 HEAD | head -n 1)
 if git cat-file -e "$root:$workspace/package.json" 2>/dev/null; then
   exec bash "$here/check-project.sh" "$assignment" "$root"
 fi
+# A workspace that the student turned into an npm project (the README asks for
+# it, for example react-2 04.01): its package.json is not in the template copy,
+# but it has a build script or uses Vite. The student's configuration counts.
+if [ -f "$workspace/package.json" ] && jq -e '((.scripts.build // "") != "")
+  or (((.dependencies // {}) + (.devDependencies // {})) | has("vite"))' "$workspace/package.json" > /dev/null 2>&1; then
+  exec bash "$here/check-project.sh" "$assignment" own
+fi
 note=""
 if [ -f "$workspace/package.json" ] && [ "$runtime" != ts ]; then
   note="\`workspace/package.json\` is not a file of the course: the check ignores it."
