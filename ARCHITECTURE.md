@@ -39,7 +39,7 @@ attempts); nothing is written before an answer is valid.
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------- |
 | Assignments that get feedback                                            | `scripts/has-implementation.sh`: workspace differs from template |
 | Feedback skills for the work                                             | `metadata.files` and `metadata.contains` in each `SKILL.md`      |
-| Type check, program runs, HTML validation                                | check scripts; tools pinned by a `package-lock.json`             |
+| Type check, syntax check, build, lint, program runs, HTML validation     | check scripts; tools pinned by a `package-lock.json`             |
 | Answers for `prompt()`, random numbers                                   | course file `.github/feedback/inputs.yml`; fixed random seed     |
 | "Does not run" (score cap 50 %)                                          | check results                                                    |
 | Prompt text and order                                                    | `scripts/feedback.py`                                            |
@@ -58,7 +58,9 @@ Always the same parts in the same order, identical for every engine:
    course (students, language, conventions, chapter mapping of the skills).
 3. Feedback skills: the `SKILL.md` text of every matching skill, sorted by name.
 4. The assignment: README, the requirements checklist numbered R1…Rn, the
-   criteria numbered C1…Cm.
+   criteria numbered C1…Cm. A README in parts (`## Part A – …`,
+   `## Part B – …`) has no requirements section: then the checklists of its
+   parts are the requirements, grouped by part.
 5. The student's work: student commits and every file of `workspace/` (files
    that are unchanged from the template are marked as given).
 6. The results of the automatic checks.
@@ -122,11 +124,30 @@ and the student programs.
   configuration file that a student adds is ignored), `npm ci --ignore-scripts`,
   a writable `node_modules` with one link per package (`tsc -b` and Vite write
   to it), the build in the sandbox, not run. A failing build caps the score
-  (reason `build`). In a workspace without a `package.json` of the template, a
-  `package.json` that a student adds is ignored.
+  (reason `build`). When the project has a `lint` script (oxlint in the Vite
+  templates), `npm run lint` runs too: its problems are facts for the feedback,
+  one line per problem sorted by file and position, and never cap the score.
 
-- `html`: `index.html` exists and links a stylesheet of the workspace;
-  `html-validate` with the presets the students see in VS Code.
+  A workspace that the student turns into an npm project (the template has no
+  `package.json`, the student's has a `build` script or uses Vite, for example
+  react-2 04.01 "Swap the Engine") gets the same check with the student's own
+  `package.json`, `package-lock.json` and configuration, with a note. Any other
+  `package.json` that a student adds to a workspace without one of the template
+  is ignored (with `runtime: ts`, its packages are installed, as for `ts`).
+
+- `javascript`: JavaScript that runs without a build (`*.js`, `*.mjs`,
+  `*.cjs`): `node --check` per file (a type annotation in a `.js` file is a
+  syntax error; reason `syntax`), then, for a Node.js program (`main.js` without
+  `index.html`), one run of `node main.js` in the sandbox (reasons `crash` and
+  `timeout`). A page (`index.html`) is not run.
+
+- `react`: no check of its own. A React project is an npm project (see
+  `typescript`); the skill adds the rules of React to the prompt.
+
+- `html`: `index.html` exists and uses a stylesheet of the workspace: linked in
+  `index.html`, or imported by a module of the page (`import "./index.css";` in
+  `src/main.tsx` of a Vite project); `html-validate` with the presets the
+  students see in VS Code.
 
 ## Where Things Live
 
