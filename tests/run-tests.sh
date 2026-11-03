@@ -40,6 +40,19 @@ chmod +x "$T/central/engines/fake.sh"
 sed -e 's/^engine: copilot/engine: fake/' -e 's/^models:/models:\n  fake: fake-model/' \
   -e 's/^versions:/versions:\n  fake: "1"/' "$CENTRAL/config.yml" > "$T/config.yml"
 
+# The command cs of the course module at the commit of config.yml, unless
+# FEEDBACK_CS names one (for example a local build of course-vscode).
+if [ -z "${FEEDBACK_CS:-}" ]; then
+  CS_COMMIT=$(python3 -c 'import sys, yaml; print(yaml.safe_load(open(sys.argv[1]))["versions"]["course"])' "$CENTRAL/config.yml")
+  mkdir -p "$T/course-vscode"
+  git -C "$T/course-vscode" init --quiet
+  git -C "$T/course-vscode" fetch --quiet --depth 1 https://github.com/nimblescape/course-vscode.git "$CS_COMMIT"
+  git -C "$T/course-vscode" checkout --quiet FETCH_HEAD
+  (cd "$T/course-vscode" && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error && node esbuild.mjs --production > /dev/null) || exit 1
+  FEEDBACK_CS="node $T/course-vscode/cli/dist/cs.js"
+fi
+export FEEDBACK_CS
+
 # Course remote (the template state) and the student's clone
 git init -q -b main "$T/template"
 tar -C "$CENTRAL/tests/fixture" -cf - . | tar -C "$T/template" -xf -
@@ -180,7 +193,7 @@ cp -r "$CENTRAL/tests/node-course/ts-utils" "$T/ts-utils"
 git -C "$T/ts-utils" init -q -b main
 git -C "$T/ts-utils" add -A
 git -C "$T/ts-utils" -c user.name=t -c user.email=t@t commit -qm "ts-utils"
-printf 'course: test\nlanguage: de\nruntime: node\n' > .github/feedback.yml
+printf 'runtime: node\n' > .github/feedback.yml
 cp "$CENTRAL/tests/node-course/tsconfig.json" .
 sed "s#TS_UTILS#git+file://$T/ts-utils#" "$CENTRAL/tests/node-course/package.json" > package.json
 npm install --package-lock-only --ignore-scripts --no-audit --no-fund --silent > /dev/null 2>&1
@@ -311,7 +324,7 @@ git reset -q --hard origin/main
 # No package.json and no tsconfig.json (also not the one that section 9 added
 # to the workspace): the defaults of ts
 git rm -q package.json tsconfig.json "$TS/workspace/tsconfig.json"
-printf 'course: test\nlanguage: de\nruntime: ts\n' > .github/feedback.yml
+printf 'runtime: ts\n' > .github/feedback.yml
 git add -A && git -c user.name=t -c user.email=t@t commit -qm "teacher: switch to ts" && git push -q origin HEAD:main
 student "$TS/workspace/main.ts" 'import { readFileSync, writeFileSync } from "node:fs";
 
@@ -453,7 +466,7 @@ expect "React project: react, typescript, html and css skills" bash -c "$(declar
 expect "React project: the stylesheet imported by src/main.tsx counts" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF 'Stylesheets imported by modules: \`src/index.css\` (in \`src/main.tsx\`)'"
 expect "React project: build and lint without problems" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -qF '(\`npm run build\` of the project: \`tsc -b && vite build\`)' && last_prompt | grep -q 'No errors.' && last_prompt | grep -qF '### Lint (\`npm run lint\` of the project: \`oxlint\`)' && last_prompt | grep -q 'No problems.'"
 expect "React project: not capped" contains "$REACT/FEEDBACK.md" "**Ergebnis: 100 %**"
-expect "README in parts: the checklists of the parts are the requirements" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^- R1 (Teil A – Der Fehler): Ein Kommentar' && last_prompt | grep -q '^- R3 (Teil B – Der Zähler › Code): Die Zahl ist ein State'"
+expect "requirements in groups: the group of each requirement" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '^- R1 (Teil A – Der Fehler): Ein Kommentar' && last_prompt | grep -q '^- R3 (Teil B – Code): Die Zahl ist ein State'"
 student "$REACT/workspace/src/app.tsx" 'import { useState } from "react";
 
 export function App() {

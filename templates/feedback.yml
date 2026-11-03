@@ -1,8 +1,9 @@
 name: Feedback
 
 # Creates or updates the FEEDBACK.md files of the assignments. All logic lives
-# in the central repository majikmate/course-feedback; its config.yml decides
-# which agent engine and model run.
+# in the public central repository nimblescape/course-feedback; its config.yml
+# decides which agent engine and model run. The course module
+# @nimblescape/course (command cs) reads the course and writes FEEDBACK.md.
 #
 # Students cannot change FEEDBACK.md: the organisation ruleset lets only its
 # bypass actors push it, and GITHUB_TOKEN cannot be one. The last step
@@ -39,7 +40,7 @@ concurrency:
 
 env:
   # Version of the central scripts and rules; config.yml is always read from main
-  FEEDBACK_VERSION: v1
+  FEEDBACK_VERSION: v2
 
 jobs:
   feedback:
@@ -68,10 +69,9 @@ jobs:
         if: steps.repository.outputs.feedback
         uses: actions/checkout@v7
         with:
-          repository: majikmate/course-feedback
+          # A public repository: the checkout needs no token of its own
+          repository: nimblescape/course-feedback
           ref: ${{ env.FEEDBACK_VERSION }}
-          # FEEDBACK_CENTRAL_TOKEN: the old name of the secret, used until it is deleted
-          token: ${{ secrets.FEEDBACK_WORKFLOW_TOKEN || secrets.FEEDBACK_CENTRAL_TOKEN }}
           path: .feedback
           fetch-depth: 0 # also fetches main, for config.yml
           persist-credentials: false

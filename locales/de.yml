@@ -1,23 +1,7 @@
-# Texts that the script writes into FEEDBACK.md for courses with
-# `language: de` in .github/feedback.yml. The model writes everything else.
-
-# Section names in the assignment READMEs
-readme:
-  requirements: [Anforderungen]
-  criteria: [Kriterien]
-
-title: "Feedback: {title} – {time}"
-update: "Update – {time}"
-headings:
-  assessment: Bewertung
-  best_practices: Best Practices
-  suggestions: Vorschläge
-  summary: Zusammenfassung
-run: Ausgeführt
-commits: Commits in `workspace/`
-no_suggestions: Keine weiteren Vorschläge – weiter so!
-score: "Ergebnis: {score} %"
-capped: "Die Arbeit läuft noch nicht ({reasons}), daher höchstens 50 %."
+# Texts of the feedback program for courses with `language: de` in
+# .course/course.yml. The course module (`cs feedback`) writes FEEDBACK.md with
+# its own fixed texts; the program gives it these reasons when the work does
+# not run.
 
 # Reasons of the automatic checks for "does not run"
 reasons:

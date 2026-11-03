@@ -1,8 +1,17 @@
 # Course Feedback
 
-Central feedback automation for the majikmate courses. After every push of a
-student, the work is checked and run, a model judges it against the assignment
-README, and a script writes or extends `FEEDBACK.md` next to the README.
+Central feedback automation for the courses in the format of the nimblescape
+course module. After every push of a student, the work is checked and run, a
+model judges it against the assignment README, and the course module writes or
+extends `FEEDBACK.md` next to the README.
+
+The course module [`@nimblescape/course`](https://github.com/nimblescape/course-vscode)
+(command `cs`) owns the files of a course: `cs read` reads each assignment,
+`cs instructions feedback` prints the rules of judging and the course's own
+feedback rules (`.course/instructions/feedback.md`), `cs feedback --form` prints
+the form of the model's answer, and `cs feedback` checks the answer, computes the
+score and writes `FEEDBACK.md`. This repository keeps the program: the settings,
+the engines, the skills, the automatic checks and the prompt.
 
 This repository holds everything that is the same for all courses. One central
 file, [`config.yml`](config.yml), decides which engine, which model and which
@@ -12,9 +21,9 @@ tool versions run – so costs and billing are controlled in one place.
 
 Read [ARCHITECTURE.md](ARCHITECTURE.md): the pipeline, which parts are fixed and
 which part comes from the model, the prompt, the answer, the checks and the
-security layers. In short: scripts run the checks, build one fixed prompt and
-write `FEEDBACK.md` with the score; the model has no tools and only judges the
-student's code.
+security layers. In short: scripts run the checks and build one fixed prompt,
+`cs feedback` writes `FEEDBACK.md` with the score; the model has no tools and
+only judges the student's code.
 
 ## Central Config
 
@@ -25,7 +34,7 @@ student's code.
 | `enabled`                 | `false` stops all feedback runs                             |
 | `engine`                  | File in `engines/`: `copilot` or `claude-code`              |
 | `models.<engine>`         | Exact model name per engine (no alias)                      |
-| `versions`                | Node.js major version and exact CLI version per engine      |
+| `versions`                | Node.js major version, exact CLI version per engine, and `course`: the commit of nimblescape/course-vscode whose `cs` the runs build (until `@nimblescape/course` is on npm) |
 | `max_assignments_per_run` | Cost limit per run; the rest follow in the nightly run      |
 | `courses.<course-id>`     | Optional values for one course, for example a smaller model |
 
@@ -74,7 +83,7 @@ A skill is a folder `skills/<name>/` with:
   whole text goes into the prompt.
 - optionally `check.sh <assignment-path>`: prints Markdown facts for the prompt,
   writes `does-not-run <reason>` to `$FEEDBACK_STATUS` when the work does not
-  run (reasons are named in `locales/`) and never fails. Helpers are in
+  run (the texts of the reasons are in `locales/`) and never fails. Helpers are in
   [`scripts/check-lib.sh`](scripts/check-lib.sh); student programs run only
   through [`scripts/sandbox.sh`](scripts/sandbox.sh).
 - optionally `tools/` with `package.json` and `package-lock.json`: the tools of
@@ -87,16 +96,16 @@ skill of the same name. Move it here when a second course needs it.
 ## Security
 
 The layers are described in [ARCHITECTURE.md](ARCHITECTURE.md#security). One of
-them lives outside this repository: the organisation ruleset "Protected Folders"
-of HTLD-STH-SWP rejects student pushes to `.github/`, `.devcontainer/`,
-`10-course/`, `10-tutorials/`, `reference-material/` and `00-grading/`. Without
-it, a student could add a workflow that prints the organisation secrets, or
-change the course rules and the prepared inputs. Keep `.github/**/*` in that
-ruleset.
+them lives outside this repository: a push ruleset of HTLD-STH-SWP for the
+student and class repositories of the courses restricts every path (`**/*`,
+`**/.*`, `.*/**/*`) and allows only `20-assignments/*/*/workspace/**` and
+`30-playground/**`; its bypass actors are the organisation and repository
+admins. Without it, a student could add a workflow that prints the organisation
+secrets, or change the course rules (`.course/`), the READMEs and the prepared
+inputs. Keep `.github/` and `.course/` restricted in that ruleset.
 
-Students must not change `FEEDBACK.md` either. When the ruleset protects
-`20-assignments/*/*/FEEDBACK.md`, only its bypass actors can push the file, and
-`GITHUB_TOKEN` cannot be one. The course workflow therefore pushes in its last
+Students must not change `FEEDBACK.md` either. The ruleset restricts it, so
+only its bypass actors can push the file, and `GITHUB_TOKEN` cannot be one. The course workflow therefore pushes in its last
 step with the secret `FEEDBACK_PUSH_TOKEN` (see below); `scripts/run.sh` only
 commits (`FEEDBACK_PUSH: later`).
 
@@ -107,15 +116,14 @@ as `COPILOT_GITHUB_TOKEN` today):
 
 | Secret                    | When                 | Content                                                                                      |
 | ------------------------- | -------------------- | -------------------------------------------------------------------------------------------- |
-| `FEEDBACK_WORKFLOW_TOKEN` | always               | Fine-grained token, owner `majikmate`, only this repository, "Contents: Read-only"           |
 | `COPILOT_GITHUB_TOKEN`    | engine `copilot`     | Token of the account whose Copilot subscription pays, with the "Copilot Requests" permission |
 | `CLAUDE_CODE_OAUTH_TOKEN` | engine `claude-code` | Output of `claude setup-token` (Claude Max plan)                                             |
+| `FEEDBACK_PUSH_TOKEN`     | always               | Pushes `FEEDBACK.md`, see below                                                              |
 
-`FEEDBACK_WORKFLOW_TOKEN` needs an organisation policy in majikmate that allows
-fine-grained personal access tokens, and possibly the approval of the token
-there. Set an expiry date and renew the token before it expires. Its old name
-`FEEDBACK_CENTRAL_TOKEN` is still read as a fallback until the old secret is
-deleted.
+This repository and nimblescape/course-vscode are public: the course workflow
+checks them out without a token. The workflow of version `v2` reads no secret
+`FEEDBACK_WORKFLOW_TOKEN` (old name `FEEDBACK_CENTRAL_TOKEN`) any more; the
+secret is deleted.
 
 ### Push token (pushes FEEDBACK.md)
 
@@ -143,11 +151,13 @@ the model never see it.
 
 1. Copy [`templates/feedback.yml`](templates/feedback.yml) to
    `.github/workflows/feedback.yml` of the course repository.
-2. Add `.github/feedback.yml`:
+2. Put the course into the format of the course module: `.course/course.yml`
+   with `course` (selects the course values in `config.yml`) and `language`
+   (`de` or `en`), and the comment of the format in each file (`cs format`,
+   `cs check`). Then add `.github/feedback.yml` with the settings of this
+   program:
 
    ```yaml
-   course: oop-2 # selects the course values in config.yml
-   language: en # locales/en.yml: headings and fixed texts of FEEDBACK.md
    runtime: ts # how students run TypeScript: ts, node or deno (default)
    ```
 
@@ -189,10 +199,11 @@ the model never see it.
    `package.json` in the template), the check builds it with the student's own
    `package.json`, `package-lock.json` and configuration.
 
-3. Add `.github/instructions/feedback-course.instructions.md` with the course
-   rules: students, language and tone, README sections, what the automatic
-   checks mean for this course, from which chapter a skill applies (for example:
-   `oop` from chapter 02 on), course conventions and equivalent approaches.
+3. Add `.course/instructions/feedback.md` with the course's own feedback rules
+   (`cs instructions feedback` prints them after the rules of judging and after
+   `.course/instructions/all.md`): what the automatic checks mean for this
+   course, from which chapter a skill applies (for example: `oop` from chapter
+   02 on), course conventions and equivalent approaches.
 4. For programs that use `prompt()`: add `.github/feedback/inputs.yml` with one
    list of answers per run; the first run is the example run of the README.
 
@@ -204,14 +215,15 @@ the model never see it.
 
 5. Optionally add course skills in `.github/feedback-skills/<name>/`.
 
-A new language needs a new file in `locales/`.
+A new language needs the course module to know it and a new file in
+`locales/` with the texts of the reasons why a work does not run.
 
 ## First Rollout
 
 The template sync copies a course change into every class and student
 repository, so the central side must be ready first:
 
-1. Merge the central changes into `main` and move the version tag `v1` to it.
+1. Merge the central changes into `main` and tag the new version (`v2`).
 2. Set the secrets in HTLD-STH-SWP.
 3. Merge the course changes. The template sync then brings the new workflow to
    the class and student repositories; it pushes with `TEMPLATE_SYNC_TOKEN`,
@@ -219,11 +231,14 @@ repository, so the central side must be ready first:
 
 ## Versions
 
-Course workflows use `FEEDBACK_VERSION: v1`. After a compatible change to
+Course workflows use `FEEDBACK_VERSION: v2` (`v1` is the version before the
+course module: course id and language in `.github/feedback.yml`, the course rules
+in `.github/instructions/feedback-course.instructions.md`, and the README parser
+and the writer of `FEEDBACK.md` in `scripts/feedback.py`). After a compatible change to
 scripts, rules or skills, move the tag so that the courses get it:
 
 ```bash
-git tag -f v1 && git push -f origin v1
+git tag -f v2 && git push -f origin v2
 ```
 
 A change that needs new course files gets a new tag (`v2`), and the course

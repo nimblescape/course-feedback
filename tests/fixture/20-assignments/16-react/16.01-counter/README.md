@@ -2,17 +2,17 @@
 
 **Counter** – Ein Zähler mit React.
 
-## Teil A – Der Fehler
+## Anforderungen
+
+### Teil A – Der Fehler
 
 - [ ] Ein Kommentar über `App` nennt die Ursache.
 
-## Teil B – Der Zähler
-
-### Seite
+### Teil B – Seite
 
 - [ ] `App` zeigt einen Button mit der Zahl.
 
-### Code
+### Teil B – Code
 
 - [ ] Die Zahl ist ein State mit `useState`.
 
