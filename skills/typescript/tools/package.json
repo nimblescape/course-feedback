@@ -4,6 +4,6 @@
   "dependencies": {
     "@jsr/std__collections": "1.4.0",
     "@jsr/std__fmt": "1.0.10",
-    "typescript": "7.0.2"
+    "typescript": "6.0.3"
   }
 }
