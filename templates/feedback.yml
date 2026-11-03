@@ -40,7 +40,7 @@ concurrency:
 
 env:
   # Version of the central scripts and rules; config.yml is always read from main
-  FEEDBACK_VERSION: v2
+  FEEDBACK_VERSION: v1
 
 jobs:
   feedback:
