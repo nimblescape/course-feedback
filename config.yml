@@ -28,7 +28,7 @@ versions:
   # The version of the npm package @nimblescape/course whose command reads the
   # courses and writes FEEDBACK.md (it runs with npx), or a commit of
   # nimblescape/course-vscode for a version that is not on npm.
-  course: a457d1bb7297d483c6999e222abf7eebca2d731f
+  course: 0.1.0
   copilot: 1.0.103
   claude-code: 2.1.310
 
