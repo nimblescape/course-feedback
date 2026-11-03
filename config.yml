@@ -25,6 +25,10 @@ models:
 # pinned in the package-lock.json files next to the check scripts in skills/.
 versions:
   node: "26" # major version, the same as in the course devcontainers
+  # The commit of nimblescape/course-vscode whose command cs (npm package
+  # @nimblescape/course) reads the courses and writes FEEDBACK.md, until the
+  # package is published on npm.
+  course: d8c6a0830924190d339954e6db433d704b947e90
   copilot: 1.0.103
   claude-code: 2.1.310
 
@@ -33,7 +37,7 @@ versions:
 max_assignments_per_run: 20
 
 # Optional settings per course id (the "course" in the course repository's
-# .github/feedback.yml). Each key replaces the value above for that course.
+# .course/course.yml). Each key replaces the value above for that course.
 courses: {}
 #  html-css-2:
 #    models:

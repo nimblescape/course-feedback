@@ -1,2 +1,2 @@
-course: test
-language: de
+# Settings of the feedback program for this course. The course id and the
+# language come from .course/course.yml of the course module.

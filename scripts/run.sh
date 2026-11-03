@@ -17,7 +17,12 @@
 # workflow's last step pushes with scripts/push.sh.
 #
 # Per assignment: automatic checks → prompt → model (no tools) → the answer is
-# checked → FEEDBACK.md is written by scripts/feedback.py. See ARCHITECTURE.md.
+# checked and FEEDBACK.md is written by the course module (`cs feedback`,
+# called by scripts/feedback.py). See ARCHITECTURE.md.
+#
+# The course module @nimblescape/course gives the command cs: run.sh builds it
+# from nimblescape/course-vscode at the commit versions.course of config.yml
+# and installs it globally, unless FEEDBACK_CS names a command already (tests).
 
 set -euo pipefail
 
@@ -32,8 +37,8 @@ export FEEDBACK_REPOSITORY="$PWD"
 WORK="$(mktemp -d)"
 export FEEDBACK_TOOLS="${RUNNER_TEMP:-$WORK}/feedback-tools"
 
-if [ ! -f .github/feedback.yml ]; then
-  echo "::error::.github/feedback.yml is missing (course id and language)."
+if [ ! -f .course/course.yml ]; then
+  echo "::error::.course/course.yml is missing: the course is not in the format of the course module (cs format)."
   exit 1
 fi
 
@@ -48,11 +53,27 @@ if ! bwrap --ro-bind / / --dev /dev --proc /proc --unshare-all true; then
   exit 1
 fi
 
+# The command cs of the course module, built from its repository at a fixed
+# commit until @nimblescape/course is published on npm.
+if [ -z "${FEEDBACK_CS:-}" ]; then
+  CS_COMMIT=$(python3 -c 'import sys, yaml; print(yaml.safe_load(open(sys.argv[1]))["versions"]["course"])' "$FEEDBACK_CONFIG")
+  CS_SOURCE="$FEEDBACK_TOOLS/course-vscode"
+  rm -rf "$CS_SOURCE"
+  mkdir -p "$CS_SOURCE"
+  git -C "$CS_SOURCE" init --quiet
+  git -C "$CS_SOURCE" fetch --quiet --depth 1 https://github.com/nimblescape/course-vscode.git "$CS_COMMIT"
+  git -C "$CS_SOURCE" checkout --quiet FETCH_HEAD
+  (cd "$CS_SOURCE" && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error && node esbuild.mjs --production > /dev/null \
+    && npm install --global --no-audit --no-fund --loglevel=error ./cli)
+  export FEEDBACK_CS=cs
+fi
+echo "Course module: $($FEEDBACK_CS --version)"
+
 feedback() { python3 "$FEEDBACK_CENTRAL/scripts/feedback.py" "$@"; }
 
 # --- Settings ---------------------------------------------------------------
 
-COURSE=$(python3 -c 'import yaml; print(yaml.safe_load(open(".github/feedback.yml"))["course"])')
+COURSE=$(feedback course course)
 ENABLED=$(feedback setting enabled)
 ENGINE=$(feedback setting engine)
 MODEL=$(feedback setting "models.$ENGINE")
