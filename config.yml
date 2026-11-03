@@ -25,9 +25,9 @@ models:
 # pinned in the package-lock.json files next to the check scripts in skills/.
 versions:
   node: "26" # major version, the same as in the course devcontainers
-  # The commit of nimblescape/course-vscode whose command cs (npm package
-  # @nimblescape/course) reads the courses and writes FEEDBACK.md, until the
-  # package is published on npm.
+  # The version of the npm package @nimblescape/course whose command reads the
+  # courses and writes FEEDBACK.md (it runs with npx), or a commit of
+  # nimblescape/course-vscode for a version that is not on npm.
   course: a457d1bb7297d483c6999e222abf7eebca2d731f
   copilot: 1.0.103
   claude-code: 2.1.310

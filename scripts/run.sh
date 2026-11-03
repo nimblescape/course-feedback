@@ -17,12 +17,14 @@
 # workflow's last step pushes with scripts/push.sh.
 #
 # Per assignment: automatic checks → prompt → model (no tools) → the answer is
-# checked and FEEDBACK.md is written by the course module (`cs feedback`,
+# checked and FEEDBACK.md is written by the course module (command `feedback`,
 # called by scripts/feedback.py). See ARCHITECTURE.md.
 #
-# The course module @nimblescape/course gives the command cs: run.sh builds it
-# from nimblescape/course-vscode at the commit versions.course of config.yml
-# and installs it globally, unless FEEDBACK_CS names a command already (tests).
+# The command of the course module (npm package @nimblescape/course) runs with
+# npx, without a global install. versions.course of config.yml is the version
+# of the package, or a commit of nimblescape/course-vscode for a version that is
+# not on npm: run.sh then builds the command from the repository and runs the
+# built file. FEEDBACK_CS can name a command already (tests).
 
 set -euo pipefail
 
@@ -53,19 +55,23 @@ if ! bwrap --ro-bind / / --dev /dev --proc /proc --unshare-all true; then
   exit 1
 fi
 
-# The command cs of the course module, built from its repository at a fixed
-# commit until @nimblescape/course is published on npm.
+# The command of the course module: the npm package at a fixed version with
+# npx, or a build of its repository at a fixed commit. Nothing is installed
+# globally.
 if [ -z "${FEEDBACK_CS:-}" ]; then
-  CS_COMMIT=$(python3 -c 'import sys, yaml; print(yaml.safe_load(open(sys.argv[1]))["versions"]["course"])' "$FEEDBACK_CONFIG")
-  CS_SOURCE="$FEEDBACK_TOOLS/course-vscode"
-  rm -rf "$CS_SOURCE"
-  mkdir -p "$CS_SOURCE"
-  git -C "$CS_SOURCE" init --quiet
-  git -C "$CS_SOURCE" fetch --quiet --depth 1 https://github.com/nimblescape/course-vscode.git "$CS_COMMIT"
-  git -C "$CS_SOURCE" checkout --quiet FETCH_HEAD
-  (cd "$CS_SOURCE" && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error && node esbuild.mjs --production > /dev/null \
-    && npm install --global --no-audit --no-fund --loglevel=error ./cli)
-  export FEEDBACK_CS=cs
+  CS_VERSION=$(python3 -c 'import sys, yaml; print(yaml.safe_load(open(sys.argv[1]))["versions"]["course"])' "$FEEDBACK_CONFIG")
+  if [[ "$CS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+].*)?$ ]]; then
+    export FEEDBACK_CS="npx -y @nimblescape/course@$CS_VERSION"
+  else
+    CS_SOURCE="$FEEDBACK_TOOLS/course-vscode"
+    rm -rf "$CS_SOURCE"
+    mkdir -p "$CS_SOURCE"
+    git -C "$CS_SOURCE" init --quiet
+    git -C "$CS_SOURCE" fetch --quiet --depth 1 https://github.com/nimblescape/course-vscode.git "$CS_VERSION"
+    git -C "$CS_SOURCE" checkout --quiet FETCH_HEAD
+    (cd "$CS_SOURCE" && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error && node esbuild.mjs --production > /dev/null)
+    export FEEDBACK_CS="node $CS_SOURCE/cli/dist/cs.js"
+  fi
 fi
 echo "Course module: $($FEEDBACK_CS --version)"
 

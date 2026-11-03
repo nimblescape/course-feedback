@@ -40,16 +40,21 @@ chmod +x "$T/central/engines/fake.sh"
 sed -e 's/^engine: copilot/engine: fake/' -e 's/^models:/models:\n  fake: fake-model/' \
   -e 's/^versions:/versions:\n  fake: "1"/' "$CENTRAL/config.yml" > "$T/config.yml"
 
-# The command cs of the course module at the commit of config.yml, unless
-# FEEDBACK_CS names one (for example a local build of course-vscode).
+# The command of the course module at the version or commit of config.yml, as
+# run.sh starts it, unless FEEDBACK_CS names one (for example a local build of
+# course-vscode).
 if [ -z "${FEEDBACK_CS:-}" ]; then
-  CS_COMMIT=$(python3 -c 'import sys, yaml; print(yaml.safe_load(open(sys.argv[1]))["versions"]["course"])' "$CENTRAL/config.yml")
-  mkdir -p "$T/course-vscode"
-  git -C "$T/course-vscode" init --quiet
-  git -C "$T/course-vscode" fetch --quiet --depth 1 https://github.com/nimblescape/course-vscode.git "$CS_COMMIT"
-  git -C "$T/course-vscode" checkout --quiet FETCH_HEAD
-  (cd "$T/course-vscode" && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error && node esbuild.mjs --production > /dev/null) || exit 1
-  FEEDBACK_CS="node $T/course-vscode/cli/dist/cs.js"
+  CS_VERSION=$(python3 -c 'import sys, yaml; print(yaml.safe_load(open(sys.argv[1]))["versions"]["course"])' "$CENTRAL/config.yml")
+  if [[ "$CS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+].*)?$ ]]; then
+    FEEDBACK_CS="npx -y @nimblescape/course@$CS_VERSION"
+  else
+    mkdir -p "$T/course-vscode"
+    git -C "$T/course-vscode" init --quiet
+    git -C "$T/course-vscode" fetch --quiet --depth 1 https://github.com/nimblescape/course-vscode.git "$CS_VERSION"
+    git -C "$T/course-vscode" checkout --quiet FETCH_HEAD
+    (cd "$T/course-vscode" && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error && node esbuild.mjs --production > /dev/null) || exit 1
+    FEEDBACK_CS="node $T/course-vscode/cli/dist/cs.js"
+  fi
 fi
 export FEEDBACK_CS
 
