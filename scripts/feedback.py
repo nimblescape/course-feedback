@@ -31,7 +31,7 @@ Usage:
 Environment:
   FEEDBACK_CENTRAL  central repository (default .feedback)
   FEEDBACK_CONFIG   config.yml (default $FEEDBACK_CENTRAL/config.yml)
-  FEEDBACK_CS       the command of the course module (default cs)
+  FEEDBACK_CS       the command of the course module, set by run.sh (default cs)
   FEEDBACK_TIME     time for FEEDBACK.md, dd.mm.yyyy hh:mm (Europe/Vienna)
   FEEDBACK_SECRETS  names of environment variables that must not appear in
                     FEEDBACK.md

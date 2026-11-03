@@ -6,11 +6,12 @@ model judges it against the assignment README, and the course module writes or
 extends `FEEDBACK.md` next to the README.
 
 The course module [`@nimblescape/course`](https://github.com/nimblescape/course-vscode)
-(command `cs`) owns the files of a course: `cs read` reads each assignment,
-`cs instructions feedback` prints the rules of judging and the course's own
-feedback rules (`.course/instructions/feedback.md`), `cs feedback --form` prints
-the form of the model's answer, and `cs feedback` checks the answer, computes the
-score and writes `FEEDBACK.md`. This repository keeps the program: the settings,
+owns the files of a course. The program runs its command with
+`npx -y @nimblescape/course@<version>` and installs nothing globally: `read`
+reads each assignment, `instructions feedback` prints the rules of judging and
+the course's own feedback rules (`.course/instructions/feedback.md`),
+`feedback --form` prints the form of the model's answer, and `feedback` checks
+the answer, computes the score and writes `FEEDBACK.md`. This repository keeps the program: the settings,
 the engines, the skills, the automatic checks and the prompt.
 
 This repository holds everything that is the same for all courses. One central
@@ -22,8 +23,8 @@ tool versions run – so costs and billing are controlled in one place.
 Read [ARCHITECTURE.md](ARCHITECTURE.md): the pipeline, which parts are fixed and
 which part comes from the model, the prompt, the answer, the checks and the
 security layers. In short: scripts run the checks and build one fixed prompt,
-`cs feedback` writes `FEEDBACK.md` with the score; the model has no tools and
-only judges the student's code.
+the command `feedback` of the course module writes `FEEDBACK.md` with the
+score; the model has no tools and only judges the student's code.
 
 ## Central Config
 
@@ -34,7 +35,7 @@ only judges the student's code.
 | `enabled`                 | `false` stops all feedback runs                             |
 | `engine`                  | File in `engines/`: `copilot` or `claude-code`              |
 | `models.<engine>`         | Exact model name per engine (no alias)                      |
-| `versions`                | Node.js major version, exact CLI version per engine, and `course`: the commit of nimblescape/course-vscode whose `cs` the runs build (until `@nimblescape/course` is on npm) |
+| `versions`                | Node.js major version, exact CLI version per engine, and `course`: the version of the npm package `@nimblescape/course` that the runs start with npx, or a commit of nimblescape/course-vscode that the runs build |
 | `max_assignments_per_run` | Cost limit per run; the rest follow in the nightly run      |
 | `courses.<course-id>`     | Optional values for one course, for example a smaller model |
 
@@ -200,10 +201,11 @@ the model never see it.
    `package.json`, `package-lock.json` and configuration.
 
 3. Add `.course/instructions/feedback.md` with the course's own feedback rules
-   (`cs instructions feedback` prints them after the rules of judging and after
-   `.course/instructions/all.md`): what the automatic checks mean for this
-   course, from which chapter a skill applies (for example: `oop` from chapter
-   02 on), course conventions and equivalent approaches.
+   (`npx -y @nimblescape/course instructions feedback` prints them after the
+   rules of judging and after `.course/instructions/all.md`): what the
+   automatic checks mean for this course, from which chapter a skill applies
+   (for example: `oop` from chapter 02 on), course conventions and equivalent
+   approaches.
 4. For programs that use `prompt()`: add `.github/feedback/inputs.yml` with one
    list of answers per run; the first run is the example run of the README.
 
