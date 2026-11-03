@@ -121,9 +121,9 @@ as `COPILOT_GITHUB_TOKEN` today):
 | `FEEDBACK_PUSH_TOKEN`     | always               | Pushes `FEEDBACK.md`, see below                                                              |
 
 This repository and nimblescape/course-vscode are public: the course workflow
-checks them out without a token. The former secret `FEEDBACK_WORKFLOW_TOKEN`
-(and its old name `FEEDBACK_CENTRAL_TOKEN`) is no longer read by the workflow of
-version `v2`; delete it when no course uses `v1` any more.
+checks them out without a token. The workflow of version `v2` reads no secret
+`FEEDBACK_WORKFLOW_TOKEN` (old name `FEEDBACK_CENTRAL_TOKEN`) any more; the
+secret is deleted.
 
 ### Push token (pushes FEEDBACK.md)
 
