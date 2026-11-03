@@ -121,7 +121,7 @@ as `COPILOT_GITHUB_TOKEN` today):
 | `FEEDBACK_PUSH_TOKEN`     | always               | Pushes `FEEDBACK.md`, see below                                                              |
 
 This repository and nimblescape/course-vscode are public: the course workflow
-checks them out without a token. The workflow of version `v2` reads no secret
+checks them out without a token. The workflow reads no secret
 `FEEDBACK_WORKFLOW_TOKEN` (old name `FEEDBACK_CENTRAL_TOKEN`) any more; the
 secret is deleted.
 
@@ -223,7 +223,8 @@ A new language needs the course module to know it and a new file in
 The template sync copies a course change into every class and student
 repository, so the central side must be ready first:
 
-1. Merge the central changes into `main` and tag the new version (`v2`).
+1. Merge the central changes into `main` and move the tag `v1` to the new
+   version.
 2. Set the secrets in HTLD-STH-SWP.
 3. Merge the course changes. The template sync then brings the new workflow to
    the class and student repositories; it pushes with `TEMPLATE_SYNC_TOKEN`,
@@ -231,14 +232,14 @@ repository, so the central side must be ready first:
 
 ## Versions
 
-Course workflows use `FEEDBACK_VERSION: v2` (`v1` is the version before the
-course module: course id and language in `.github/feedback.yml`, the course rules
-in `.github/instructions/feedback-course.instructions.md`, and the README parser
-and the writer of `FEEDBACK.md` in `scripts/feedback.py`). After a compatible change to
+Course workflows use `FEEDBACK_VERSION: v1`. The tag `v1` names the version
+with the course module: the course in `.course/` and the command `cs`. It was
+moved on 03.11.2026 from the version before the course module, because every
+course moved to the format at the same time. After a compatible change to
 scripts, rules or skills, move the tag so that the courses get it:
 
 ```bash
-git tag -f v2 && git push -f origin v2
+git tag -f v1 && git push -f origin v1
 ```
 
 A change that needs new course files gets a new tag (`v2`), and the course

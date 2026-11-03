@@ -15,7 +15,7 @@ student pushes 20-assignments/<chapter>/<assignment>/workspace/…
    │
    ▼
 .github/workflows/feedback.yml (course repo, copied from templates/)
-   │  checks out the student repo, and this repo (tag v2) into .feedback/
+   │  checks out the student repo, and this repo (tag v1) into .feedback/
    ▼
 scripts/run.sh builds the command cs of the course module (nimblescape/
 course-vscode at versions.course of config.yml), then for each assignment
