@@ -1,0 +1,119 @@
+# Releases a version of the action on a manual start from main, with the
+# version as input: the CI workflow tests the head of main, then the job
+# creates the tag v<version> on it, moves the major tag (v1 for 1.x.y) to the
+# same commit and creates the GitHub release of v<version>. The course
+# workflows use nimblescape/course-feedback@v1, the commit that the tag v1
+# names (GitHub picks no newest version itself), so a compatible release
+# reaches every course at its next run without a change of the course
+# workflows. A change that needs new course workflows is a new major version
+# (2.0.0, tag v2); the course workflows switch to @v2 together with it.
+# config.yml is always read from main and needs no release.
+
+name: Release
+run-name: Release ${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version to release, <major>.<minor>.<patch>, for example 1.1.0
+        required: true
+        type: string
+      notes:
+        description: The notes of the release; empty uses the notes that GitHub generates from the pull requests
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # One release at a time, and a running release is never cancelled.
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check the branch and the version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      major: ${{ steps.version.outputs.major }}
+    steps:
+      - name: Check the branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Start the release from the branch main, not from $GITHUB_REF_NAME."
+          exit 1
+
+      - name: Check the version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          version="${VERSION#v}"
+          if ! [[ "$version" =~ ^([1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::The version $VERSION does not have the form <major>.<minor>.<patch> with a major version of 1 or more."
+            exit 1
+          fi
+          # gh writes the body of an error response to the output, so the exit status decides.
+          if gh api "repos/$GH_REPO/git/ref/tags/v$version" > /dev/null 2>&1; then
+            echo "::error::The tag v$version exists already."
+            exit 1
+          fi
+          {
+            echo "tag=v$version"
+            echo "major=v${BASH_REMATCH[1]}"
+          } >> "$GITHUB_OUTPUT"
+
+  ci:
+    name: CI
+    needs: check
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Tags and GitHub release
+    needs: [check, ci]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # Creating and moving the tags and creating the release needs write access.
+      contents: write
+    steps:
+      - name: Create the tag of the version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" > /dev/null
+
+      # The course workflows run the commit of the major tag from their next run on.
+      - name: Move the major tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MAJOR: ${{ needs.check.outputs.major }}
+        run: |
+          if previous=$(gh api "repos/$GH_REPO/git/ref/tags/$MAJOR" --jq .object.sha 2> /dev/null); then
+            gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$MAJOR" -f sha="$GITHUB_SHA" -F force=true > /dev/null
+            echo "$MAJOR moved from $previous to $GITHUB_SHA."
+          else
+            gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$MAJOR" -f sha="$GITHUB_SHA" > /dev/null
+            echo "$MAJOR created on $GITHUB_SHA."
+          fi
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.check.outputs.tag }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          if [ -n "$NOTES" ]; then
+            gh release create "$TAG" --title "$TAG" --notes "$NOTES" --verify-tag
+          else
+            gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag
+          fi

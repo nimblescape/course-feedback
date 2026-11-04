@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Generates FEEDBACK.md files for the assignments of a course repository.
 #
-# Runs from the root of the course checkout; this repository is checked out in
-# .feedback/. Called by the course workflow .github/workflows/feedback.yml.
+# Runs from the root of the course checkout; the action (action.yml) copies
+# this repository into .feedback/ and calls this script.
 #
 # Usage: .feedback/scripts/run.sh changed|missing|all
 #
@@ -22,7 +22,7 @@
 # engine (see engines/), FEEDBACK_CONFIG (path of the central config.yml),
 # FEEDBACK_PUSH: "now" (default) pushes each FEEDBACK.md with the credentials
 # that actions/checkout stored for the course; "later" only commits, and the
-# workflow's last step pushes with scripts/push.sh.
+# last step of the action pushes with scripts/push.sh.
 #
 # Per assignment: automatic checks → prompt → model (no tools) → the answer is
 # checked and FEEDBACK.md is written by the course module (command `feedback`,

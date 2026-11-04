@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Pushes the feedback commits that scripts/run.sh made with FEEDBACK_PUSH=later.
 #
-# Runs from the root of the course checkout, as the last step of the course
-# workflow, also when the feedback step failed (the finished feedback is kept).
+# Runs from the root of the course checkout, as the last step of the action
+# (action.yml), also when the feedback step failed (the finished feedback is
+# kept).
 #
 # Usage: .feedback/scripts/push.sh
 #

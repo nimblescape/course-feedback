@@ -15,7 +15,9 @@ student pushes 20-assignments/<chapter>/<assignment>/workspace/…
    │
    ▼
 .github/workflows/feedback.yml (course repo, copied from templates/)
-   │  checks out the student repo, and this repo (tag v1) into .feedback/
+   │  runs the action nimblescape/course-feedback@v1 (action.yml): it checks
+   │  out the student repo, copies itself into .feedback/ and reads config.yml
+   │  from main
    ▼
 scripts/run.sh builds the command cs of the course module (nimblescape/
 course-vscode at versions.course of config.yml), then for each assignment
@@ -204,7 +206,7 @@ and the student programs.
 | (rules of judging: the course module)                      | `.course/instructions/feedback.md`: the course's feedback rules |
 | `skills/<skill>/`: `SKILL.md`, `check.sh`, `tools/`        | `feedback-skills/<skill>/` (optional own skills)       |
 | `locales/<language>.yml`: the reasons of "does not run"    | `feedback/inputs.yml`: answers for `prompt()`          |
-| `engines/`, `scripts/`, `templates/feedback.yml`, `tests/` | `workflows/feedback.yml` (copy of the template)        |
+| `action.yml`, `engines/`, `scripts/`, `templates/feedback.yml`, `tests/` | `workflows/feedback.yml` (copy of the template: triggers and secrets) |
 
 ## Security
 
