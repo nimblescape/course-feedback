@@ -1,0 +1,45 @@
+# Runs the end-to-end tests (tests/run-tests.sh) of the feedback program on
+# every pull request and every push to main. The release workflow calls it for
+# the commit that it releases.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Read the Node.js version of config.yml
+        id: config
+        run: echo "node=$(yq -r '.versions.node' config.yml)" >> "$GITHUB_OUTPUT"
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ steps.config.outputs.node }}
+
+      # The same tools that scripts/run.sh installs on the runner of a course.
+      # Ubuntu 24.04 blocks the user namespaces of bubblewrap unless this
+      # AppArmor switch is off.
+      - name: Install PyYAML and bubblewrap
+        run: |
+          sudo apt-get install -y -qq python3-yaml bubblewrap > /dev/null
+          sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Run the tests
+        run: tests/run-tests.sh

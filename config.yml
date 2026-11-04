@@ -27,13 +27,15 @@ versions:
   node: "26" # major version, the same as in the course devcontainers
   # The version of the npm package @nimblescape/course whose command reads the
   # courses and writes FEEDBACK.md (it runs with npx), or a commit of
-  # nimblescape/course-vscode for a version that is not on npm.
-  course: 0.1.0
+  # nimblescape/course-vscode for a version that is not on npm. From 0.2.0 on,
+  # the headings of FEEDBACK.md name the commit of the judged work
+  # (`cs feedback --commit`), which the selection of outdated feedback needs.
+  course: 0.2.0
   copilot: 1.0.103
   claude-code: 2.1.310
 
 # At most this many assignments get feedback in one run; the others are skipped
-# in that run (the nightly run catches assignments without feedback).
+# in that run and follow in the next run, because their feedback stays outdated.
 max_assignments_per_run: 20
 
 # Optional settings per course id (the "course" in the course repository's

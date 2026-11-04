@@ -36,7 +36,7 @@ score; the model has no tools and only judges the student's code.
 | `engine`                  | File in `engines/`: `copilot` or `claude-code`              |
 | `models.<engine>`         | Exact model name per engine (no alias)                      |
 | `versions`                | Node.js major version, exact CLI version per engine, and `course`: the version of the npm package `@nimblescape/course` that the runs start with npx, or a commit of nimblescape/course-vscode that the runs build |
-| `max_assignments_per_run` | Cost limit per run; the rest follow in the nightly run      |
+| `max_assignments_per_run` | Cost limit per run; the rest follow in the next run        |
 | `courses.<course-id>`     | Optional values for one course, for example a smaller model |
 
 A change on `main` applies to every student repo at its next run.
@@ -56,8 +56,8 @@ A new engine is one new file `engines/<name>.sh` with three commands:
 - `run <model> <prompt-file>` gives the prompt to the model without any tools,
   from an empty folder, and prints the model's answer (exit code 0 on success).
 
-Add its secret and its version (`versions.<name>`) to `config.yml` and the
-course workflow template.
+Add its version (`versions.<name>`) to `config.yml`, an input for its secret
+to [`action.yml`](action.yml), and that input to the course workflow template.
 
 ## Feedback Skills
 
@@ -106,7 +106,7 @@ secrets, or change the course rules (`.course/`), the READMEs and the prepared
 inputs. Keep `.github/` and `.course/` restricted in that ruleset.
 
 Students must not change `FEEDBACK.md` either. The ruleset restricts it, so
-only its bypass actors can push the file, and `GITHUB_TOKEN` cannot be one. The course workflow therefore pushes in its last
+only its bypass actors can push the file, and `GITHUB_TOKEN` cannot be one. The action therefore pushes in its last
 step with the secret `FEEDBACK_PUSH_TOKEN` (see below); `scripts/run.sh` only
 commits (`FEEDBACK_PUSH: later`).
 
@@ -122,7 +122,7 @@ as `COPILOT_GITHUB_TOKEN` today):
 | `FEEDBACK_PUSH_TOKEN`     | always               | Pushes `FEEDBACK.md`, see below                                                              |
 
 This repository and nimblescape/course-vscode are public: the course workflow
-checks them out without a token. The workflow reads no secret
+runs the action and the course module without a token of their own. The workflow reads no secret
 `FEEDBACK_WORKFLOW_TOKEN` (old name `FEEDBACK_CENTRAL_TOKEN`) any more; the
 secret is deleted.
 
@@ -151,7 +151,10 @@ the model never see it.
 ## Adding a Course
 
 1. Copy [`templates/feedback.yml`](templates/feedback.yml) to
-   `.github/workflows/feedback.yml` of the course repository.
+   `.github/workflows/feedback.yml` of the course repository. It holds only
+   the triggers and passes the secrets to the action
+   `nimblescape/course-feedback@v1` ([`action.yml`](action.yml)), which runs
+   every step.
 2. Put the course into the format of the course module: `.course/course.yml`
    with `course` (selects the course values in `config.yml`) and `language`
    (`de` or `en`), and the comment of the format in each file (`cs format`,
@@ -225,28 +228,37 @@ A new language needs the course module to know it and a new file in
 The template sync copies a course change into every class and student
 repository, so the central side must be ready first:
 
-1. Merge the central changes into `main` and move the tag `v1` to the new
-   version.
+1. Merge the central changes into `main` and release them with the workflow
+   [Release](.github/workflows/release.yml) (see [Versions](#versions)).
 2. Set the secrets in HTLD-STH-SWP.
 3. Merge the course changes. The template sync then brings the new workflow to
    the class and student repositories; it pushes with `TEMPLATE_SYNC_TOKEN`,
-   which must belong to an admin, because the ruleset protects `.github/`.
+   which must belong to an admin, because the ruleset protects `.github/`. A
+   manual start of the template sync in a class repository also syncs its
+   student forks at once, instead of the next night.
 
 ## Versions
 
-Course workflows use `FEEDBACK_VERSION: v1`. The tag `v1` names the version
-with the course module: the course in `.course/` and the command `cs`. It was
-moved on 03.11.2026 from the version before the course module, because every
-course moved to the format at the same time. After a compatible change to
-scripts, rules or skills, move the tag so that the courses get it:
+The course workflows run `uses: nimblescape/course-feedback@v1`: the commit
+that the tag `v1` names. GitHub does not choose the newest version 1.x.y
+itself, so every release moves `v1`. The workflow
+[Release](.github/workflows/release.yml) does this. Started from `main` with a
+version, for example `1.2.0`, it runs the tests, creates the tag `v1.2.0`,
+moves `v1` to the same commit and creates the GitHub release:
 
 ```bash
-git tag -f v1 && git push -f origin v1
+gh workflow run release.yml --repo nimblescape/course-feedback -f version=1.2.0
 ```
 
-A change that needs new course files gets a new tag (`v2`), and the course
-workflows switch to it together with the new course files. `config.yml` is
-always read from `main` and needs no tag.
+Every course runs the new version from its next run on, without a change in
+the course repositories. A change that needs a new course workflow (other
+inputs or triggers) or new course files is a new major version (`2.0.0`, tag
+`v2`), and the course workflows switch to `@v2` together with it.
+`config.yml` is always read from `main` and needs no release.
+
+Version 1.1.0 (04.11.2026) is the first version as an action. Before it, each
+course workflow checked out this repository at the tag `v1` itself, and the
+tag was moved by hand.
 
 ## Tests
 
@@ -256,3 +268,5 @@ tests/run-tests.sh
 
 Runs the whole pipeline on `tests/fixture/` with a fake engine and the real
 checks (needs git, Python with PyYAML, Node.js with npm, jq and bubblewrap).
+The workflow [CI](.github/workflows/ci.yml) runs them for every pull request,
+and the release runs them before it creates a tag.

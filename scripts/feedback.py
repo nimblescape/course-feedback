@@ -24,6 +24,9 @@ Usage:
   feedback.py prompt <assignment> <checks.md>   prompt on stdout
   feedback.py render <assignment> <answer> <status>
                                                 writes or extends FEEDBACK.md
+  feedback.py outdated [<name> …]               the names (folders relative to
+                                                20-assignments/) whose FEEDBACK.md
+                                                is missing or older than the work
 
 <assignment> is the assignment folder, for example
 20-assignments/04-input/04.01-interactive-mad-libs.
@@ -182,17 +185,91 @@ def unchanged_from_template(path):
     return subprocess.run(["git", "diff", "--quiet", added[-1], "HEAD", "--", str(path)], check=False).returncode == 0
 
 
+def student_log(assignment, revision="HEAD"):
+    """(hash, short hash, subject) of the commits up to a revision that changed
+    the workspace, newest first, without the template's first commit, merges and
+    commits of the workflows: the commits that "Commits in `workspace/`" counts."""
+    log = git("log", "--no-merges", "--format=%H%x09%h%x09%an%x09%s", revision, "--", f"{assignment}/workspace")
+    root = set(git("rev-list", "--max-parents=0", revision).split())
+    commits = []
+    for line in log.splitlines():
+        sha, short, author, subject = line.split("\t", 3)
+        if sha not in root and not author.endswith("[bot]"):
+            commits.append((sha, short, subject))
+    return commits
+
+
 def student_commits(assignment):
     """Commits that changed the workspace, without the template's first commit,
     merges and commits of the workflows."""
-    log = git("log", "--no-merges", "--format=%h%x09%an%x09%s", "--", f"{assignment}/workspace")
-    root = set(git("rev-list", "--max-parents=0", "--abbrev-commit", "HEAD").split())
-    commits = []
-    for line in log.splitlines():
-        sha, author, subject = line.split("\t", 2)
-        if sha not in root and not author.endswith("[bot]"):
-            commits.append(f"{sha} {subject}")
-    return commits
+    return [f"{short} {subject}" for _, short, subject in student_log(assignment)]
+
+
+# --- The state of the feedback ---------------------------------------------------
+
+
+def judged_commit(assignment):
+    """The commit whose work a feedback written now judges: the newest commit
+    that changed the workspace, with the workspace as it is at HEAD. Never a
+    commit of the feedback itself, which a later rebase may change; None when
+    no commit has the workspace of HEAD."""
+    workspace = f"{assignment}/workspace"
+    for sha in git("rev-list", "--max-count=1", "HEAD", "--", workspace).split():
+        if subprocess.run(["git", "diff", "--quiet", sha, "HEAD", "--", workspace], check=False).returncode == 0:
+            return sha
+    return None
+
+
+_course_data = None
+
+
+def newest_entry(assignment):
+    """The newest entry of FEEDBACK.md as the course module reads it (time,
+    commit, commits, …), or None without feedback."""
+    global _course_data
+    if _course_data is None:
+        _course_data = {item["folder"]: item for item in json.loads(cs("read", "."))["assignments"]}
+    feedback = (_course_data.get(str(assignment)) or {}).get("feedback") or {}
+    entries = feedback.get("entries") or []
+    return entries[-1] if entries else None
+
+
+def feedback_base(assignment):
+    """The commit whose work the newest feedback judged, or None when no commit
+    of the history fits it.
+
+    1. The heading names the commit (`– <time> · <commit>`): the commit among
+       those that changed the workspace whose hash starts with it. Only these
+       commits are searched, so a short hash is never ambiguous.
+    2. An older heading without a commit: "Commits in `workspace/`: N" counted
+       the student's commits that the feedback saw, so the N-th student commit,
+       when exactly N student commits lead to it. This also holds when a rebase
+       put the feedback commit after student commits that the model never saw.
+    """
+    entry = newest_entry(assignment)
+    if entry is None:
+        return None
+    workspace = f"{assignment}/workspace"
+    commit = entry.get("commit")
+    if commit:
+        return next((sha for sha in git("rev-list", "HEAD", "--", workspace).split() if sha.startswith(commit)), None)
+    count = entry.get("commits")
+    log = student_log(assignment)
+    if not isinstance(count, int) or not 0 < count <= len(log):
+        return None
+    sha = log[len(log) - count][0]
+    return sha if len(student_log(assignment, sha)) == count else None
+
+
+def outdated(assignment):
+    """True when FEEDBACK.md is missing, or when the workspace differs from the
+    work that the newest feedback judged, or when that work cannot be found."""
+    if not (Path(assignment) / "FEEDBACK.md").is_file():
+        return True
+    base = feedback_base(assignment)
+    if base is None:
+        return True
+    return subprocess.run(["git", "diff", "--quiet", base, "HEAD", "--", f"{assignment}/workspace"], check=False).returncode != 0
 
 
 # --- Skills -------------------------------------------------------------------
@@ -296,7 +373,8 @@ def command_prompt(assignment, checks_file):
     add("# Automatic Checks\n\n" + (checks or "No automatic checks for these files."))
 
     if info["update"]:
-        last = git("log", "-1", "--format=%H", "--", str(feedback)).strip()
+        # The changes since the work that the earlier feedback judged
+        last = feedback_base(assignment) or git("log", "-1", "--format=%H", "--", str(feedback)).strip()
         changes = git("log", "--oneline", f"{last}..HEAD", "--", f"{assignment}/workspace") if last else ""
         diff = git("diff", last, "HEAD", "--", f"{assignment}/workspace")[:20_000] if last else ""
         add("# Earlier Feedback\n\nThis is an update: the work changed since the earlier feedback.\n\n"
@@ -344,6 +422,9 @@ def command_render(assignment, answer_file, status_file):
         ["date", "+%d.%m.%Y %H:%M"], capture_output=True, text=True, env={**os.environ, "TZ": "Europe/Vienna"}
     ).stdout.strip()
     args = ["feedback", str(assignment), str(answer_file), "--commits", str(len(student_commits(assignment))), "--time", time]
+    judged = judged_commit(assignment)
+    if judged:
+        args += ["--commit", git("rev-parse", "--short", judged).strip()]
     for reason in not_running(status_file):
         args += ["--not-running", reason]
     result = subprocess.run([*CS, *args], capture_output=True, text=True, check=False)
@@ -353,6 +434,14 @@ def command_render(assignment, answer_file, status_file):
     if result.returncode != 0:
         sys.exit(f"cs feedback: {result.stderr.strip()}")
     print(result.stdout.strip())
+
+
+def command_outdated(*names):
+    """Prints the names (folders relative to 20-assignments/) whose FEEDBACK.md
+    is missing or older than the work, in the given order."""
+    for name in names:
+        if outdated(Path("20-assignments") / name):
+            print(name)
 
 
 def command_course(key):
@@ -367,8 +456,9 @@ def main(argv):
         "setting": (command_setting, 1), "course": (command_course, 1), "skills": (command_skills, 1),
         "inputs": (command_inputs, 2),
         "prompt": (command_prompt, 2), "render": (command_render, 3),
+        "outdated": (command_outdated, None),
     }
-    if len(argv) < 2 or argv[1] not in commands or len(argv) - 2 != commands[argv[1]][1]:
+    if len(argv) < 2 or argv[1] not in commands or commands[argv[1]][1] not in (None, len(argv) - 2):
         sys.exit(__doc__)
     commands[argv[1]][0](*argv[2:])
 

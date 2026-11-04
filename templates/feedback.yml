@@ -1,18 +1,20 @@
 name: Feedback
 
-# Creates or updates the FEEDBACK.md files of the assignments. All logic lives
-# in the public central repository nimblescape/course-feedback; its config.yml
-# decides which agent engine and model run. The course module
-# @nimblescape/course (command cs) reads the course and writes FEEDBACK.md.
+# Creates or updates the FEEDBACK.md files of the assignments. All steps live
+# in the action of the public central repository nimblescape/course-feedback
+# (action.yml); its config.yml on main decides which agent engine and model
+# run. The course module @nimblescape/course (command cs) reads the course and
+# writes FEEDBACK.md. The tag v1 always names the newest release 1.x.y of the
+# action, so a compatible update needs no change of this file.
 #
 # Students cannot change FEEDBACK.md: the organisation ruleset lets only its
-# bypass actors push it, and GITHUB_TOKEN cannot be one. The last step
-# therefore pushes with the secret FEEDBACK_PUSH_TOKEN, a fine-grained token of
-# an organisation admin (see the README of course-feedback); without the secret
+# bypass actors push it, and GITHUB_TOKEN cannot be one. The action therefore
+# pushes with the secret FEEDBACK_PUSH_TOKEN, a fine-grained token of an
+# organisation admin (see the README of course-feedback); without the secret
 # it uses GITHUB_TOKEN.
 #
-#   push      assignments whose workspace/ changed
-#   schedule  nightly safety net: student work without FEEDBACK.md
+#   push      assignments whose workspace/ changed, then those with outdated feedback
+#   schedule  nightly safety net: student work whose FEEDBACK.md is missing or outdated
 #   manual    every assignment with student work (or the chosen mode)
 on:
   push:
@@ -38,84 +40,16 @@ concurrency:
   group: feedback-${{ github.repository }}-${{ github.ref_name }}
   cancel-in-progress: false
 
-env:
-  # Version of the central scripts and rules; config.yml is always read from main
-  FEEDBACK_VERSION: v1
-
 jobs:
   feedback:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      # Templates contain no student work: they only pass their files on to the starters
-      - name: Skip templates
-        id: repository
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "$(gh api "repos/${GITHUB_REPOSITORY}" --jq .is_template)" = true ]; then
-            echo "Templates get no feedback."
-            exit 0
-          fi
-          echo "feedback=true" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout course
-        if: steps.repository.outputs.feedback
-        uses: actions/checkout@v7
+      - name: Feedback
+        uses: nimblescape/course-feedback@v1
         with:
-          fetch-depth: 0
-
-      - name: Checkout central feedback scripts
-        if: steps.repository.outputs.feedback
-        uses: actions/checkout@v7
-        with:
-          # A public repository: the checkout needs no token of its own
-          repository: nimblescape/course-feedback
-          ref: ${{ env.FEEDBACK_VERSION }}
-          path: .feedback
-          fetch-depth: 0 # also fetches main, for config.yml
-          persist-credentials: false
-
-      - name: Read central config
-        id: config
-        if: steps.repository.outputs.feedback
-        run: |
-          git -C .feedback show origin/main:config.yml > "$RUNNER_TEMP/config.yml"
-          echo "node=$(yq '.versions.node' "$RUNNER_TEMP/config.yml")" >> "$GITHUB_OUTPUT"
-
-      - name: Install Node.js
-        if: steps.repository.outputs.feedback
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ steps.config.outputs.node }}
-
-      - name: Generate feedback
-        if: steps.repository.outputs.feedback
-        env:
-          FEEDBACK_PUSH: later
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          FEEDBACK_CONFIG: ${{ runner.temp }}/config.yml
-          BRANCH: ${{ github.ref_name }}
-          BEFORE: ${{ github.event.before }}
-          SHA: ${{ github.sha }}
-          EVENT: ${{ github.event_name }}
-          INPUT_MODE: ${{ inputs.mode }}
-        run: |
-          case "$EVENT" in
-            push) mode=changed ;;
-            schedule) mode=missing ;;
-            *) mode="${INPUT_MODE:-all}" ;;
-          esac
-          bash .feedback/scripts/run.sh "$mode"
-
-      # Also after a failed or cancelled feedback step: finished feedback is
-      # kept. The push token exists only in this step, after the model and the
-      # student programs have finished.
-      - name: Push feedback
-        if: always() && steps.repository.outputs.feedback
-        env:
-          PUSH_TOKEN: ${{ secrets.FEEDBACK_PUSH_TOKEN }}
-          BRANCH: ${{ github.ref_name }}
-        run: bash .feedback/scripts/push.sh
+          mode: ${{ inputs.mode }}
+          copilot-github-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          push-token: ${{ secrets.FEEDBACK_PUSH_TOKEN }}

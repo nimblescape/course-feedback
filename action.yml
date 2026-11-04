@@ -1,0 +1,137 @@
+name: Course Feedback
+description: >-
+  Creates or updates the FEEDBACK.md files of the assignments of a course
+  repository in the format of the nimblescape course module: checks and runs
+  the student work, a model judges it, and the course module writes the
+  feedback.
+author: nimblescape
+
+# The course workflow (templates/feedback.yml) keeps the triggers, the
+# permissions and the concurrency, and passes its secrets as inputs. Each step
+# below gets only the secrets that it needs: the engine secrets only the
+# feedback step, the push token only the push step.
+inputs:
+  mode:
+    description: >-
+      changed, missing or all. Empty chooses by the event: push → changed,
+      schedule → missing, any other event → all.
+    required: false
+    default: ""
+  copilot-github-token:
+    description: Secret COPILOT_GITHUB_TOKEN of the engine copilot
+    required: false
+    default: ""
+  claude-code-oauth-token:
+    description: Secret CLAUDE_CODE_OAUTH_TOKEN of the engine claude-code
+    required: false
+    default: ""
+  anthropic-api-key:
+    description: Secret ANTHROPIC_API_KEY of the engine claude-code (instead of the OAuth token)
+    required: false
+    default: ""
+  push-token:
+    description: >-
+      Secret FEEDBACK_PUSH_TOKEN, a fine-grained token of an organisation
+      admin that pushes FEEDBACK.md. Without it, the push uses github-token.
+    required: false
+    default: ""
+  github-token:
+    description: Token that reads the repository and checks it out
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    # Templates contain no student work: they only pass their files on to the starters
+    - name: Skip templates
+      id: repository
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        if [ "$(gh api "repos/${GITHUB_REPOSITORY}" --jq .is_template)" = true ]; then
+          echo "Templates get no feedback."
+          exit 0
+        fi
+        echo "feedback=true" >> "$GITHUB_OUTPUT"
+
+    - name: Checkout course
+      if: steps.repository.outputs.feedback
+      uses: actions/checkout@v7
+      with:
+        token: ${{ inputs.github-token }}
+        fetch-depth: 0
+
+    # The program is this action at the version of the course workflow (v1);
+    # scripts/run.sh expects it in .feedback/. config.yml is always read from
+    # main, so a change of the engine, a model or a version needs no release.
+    - name: Copy the feedback program, read the central config
+      id: config
+      if: steps.repository.outputs.feedback
+      shell: bash
+      run: |
+        rm -rf .feedback
+        mkdir .feedback
+        tar -C "$GITHUB_ACTION_PATH" --exclude=./.git -cf - . | tar -C .feedback -xf -
+        central="$RUNNER_TEMP/central-config"
+        rm -rf "$central"
+        git init --quiet "$central"
+        git -C "$central" fetch --quiet --depth 1 https://github.com/nimblescape/course-feedback.git main
+        git -C "$central" show FETCH_HEAD:config.yml > "$RUNNER_TEMP/config.yml"
+        echo "node=$(yq -r '.versions.node' "$RUNNER_TEMP/config.yml")" >> "$GITHUB_OUTPUT"
+
+    - name: Install Node.js
+      if: steps.repository.outputs.feedback
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ steps.config.outputs.node }}
+
+    - name: Generate feedback
+      if: steps.repository.outputs.feedback
+      shell: bash
+      env:
+        FEEDBACK_PUSH: later
+        COPILOT_GITHUB_TOKEN: ${{ inputs.copilot-github-token }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        FEEDBACK_CONFIG: ${{ runner.temp }}/config.yml
+        BRANCH: ${{ github.ref_name }}
+        BEFORE: ${{ github.event.before }}
+        SHA: ${{ github.sha }}
+        EVENT: ${{ github.event_name }}
+        MODE: ${{ inputs.mode }}
+      run: |
+        case "$MODE" in
+          changed | missing | all) mode="$MODE" ;;
+          "")
+            case "$EVENT" in
+              push) mode=changed ;;
+              schedule) mode=missing ;;
+              *) mode=all ;;
+            esac ;;
+          *)
+            echo "::error::The mode \"$MODE\" is not changed, missing or all."
+            exit 1 ;;
+        esac
+        # GitHub passes the inputs of a composite action only through the
+        # expressions above. Should a runner also set INPUT_* variables, they
+        # are removed, so that the push token never reaches the checks, the
+        # student programs or the model.
+        unset_inputs=()
+        while IFS= read -r -d '' entry; do
+          name="${entry%%=*}"
+          if [[ "$name" == INPUT_* ]]; then unset_inputs+=(-u "$name"); fi
+        done < <(env -0)
+        env "${unset_inputs[@]}" bash .feedback/scripts/run.sh "$mode"
+
+    # Also after a failed or cancelled feedback step: finished feedback is
+    # kept. The push token exists only in this step, after the model and the
+    # student programs have finished.
+    - name: Push feedback
+      if: always() && steps.repository.outputs.feedback
+      shell: bash
+      env:
+        PUSH_TOKEN: ${{ inputs.push-token }}
+        BRANCH: ${{ github.ref_name }}
+      run: bash .feedback/scripts/push.sh
