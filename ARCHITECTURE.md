@@ -19,7 +19,7 @@ student pushes 20-assignments/<chapter>/<assignment>/workspace/…
    ▼
 scripts/run.sh builds the command cs of the course module (nimblescape/
 course-vscode at versions.course of config.yml), then for each assignment
-with student work and with changes:
+with student work whose feedback is missing or outdated:
    1. checks   skills/<skill>/check.sh       Markdown facts, "does-not-run" lines
    2. prompt   scripts/feedback.py prompt    one prompt from fixed parts and
                                              cs read, cs instructions feedback,
@@ -38,11 +38,45 @@ a fine-grained token of an organisation admin (students cannot push FEEDBACK.md)
 An invalid answer is rejected and the model is asked again (at most three
 attempts); nothing is written before an answer is valid.
 
+## Which Assignments Get Feedback
+
+Each heading of `FEEDBACK.md` ends with the short hash of the commit whose work
+it judges: `## Update – 04.11.2026 11:28 · bf21589` (format v1.1.0 of the
+course module). `scripts/feedback.py render` passes the newest commit that
+changed `workspace/` to `cs feedback --commit`, never the commit of the
+feedback itself, so the hash stays valid when `scripts/push.sh` rebases the
+feedback commit onto newer student commits.
+
+A feedback is **outdated** when the workspace at HEAD differs from the
+workspace at that commit (`feedback.py outdated`):
+
+1. The newest heading names the commit: it is looked up among the commits that
+   changed the workspace, so a short hash is never ambiguous. Students cannot
+   remove it from the history: the ruleset blocks every pushed commit that
+   changes `FEEDBACK.md`.
+2. An older heading without a commit: "Commits in `workspace/`: N" counted
+   the student commits that the feedback saw, so the judged commit is the N-th
+   student commit, when exactly N student commits lead to it.
+3. When neither finds a commit, the feedback counts as outdated, and the new
+   feedback names its commit.
+
+The run selects the assignments by this rule, not only by the pushed commits:
+
+| Event | Assignments |
+| ----- | ----------- |
+| push | the assignments of the pushed commits first, then every other one whose feedback is missing or outdated |
+| nightly | every assignment with student work whose feedback is missing or outdated |
+| manual | every assignment with student work (the outdated rule still skips unchanged work) |
+
+So a push that started no run (GitHub sometimes creates no push event), a
+failed or cancelled run, an assignment over `max_assignments_per_run`, or a
+student push while a run wrote its feedback, gets its feedback in the next run.
+
 ## Who Decides What
 
 | Part                                                                     | Decided by                                                       |
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| Assignments that get feedback                                            | `scripts/has-implementation.sh`: workspace differs from template |
+| Assignments that get feedback                                            | `scripts/has-implementation.sh`: workspace differs from template; `feedback.py outdated`: no feedback yet, or the workspace differs from the judged commit |
 | Feedback skills for the work                                             | `metadata.files` and `metadata.contains` in each `SKILL.md`      |
 | Type check, syntax check, build, lint, program runs, HTML validation     | check scripts; tools pinned by a `package-lock.json`             |
 | Answers for `prompt()`, random numbers                                   | course file `.github/feedback/inputs.yml`; fixed random seed     |
@@ -74,7 +108,8 @@ Always the same parts in the same order, identical for every engine:
 5. The student's work: student commits and every file of `workspace/` (files
    that are unchanged from the template are marked as given).
 6. The results of the automatic checks.
-7. For an update: the earlier `FEEDBACK.md` and the changes since then.
+7. For an update: the earlier `FEEDBACK.md` and the changes since the commit
+   that it judged.
 8. The answer format: `cs feedback --form`.
 
 ## The Answer and FEEDBACK.md

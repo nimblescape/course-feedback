@@ -78,7 +78,8 @@ student() { # <file> <content>
   git reset -q --hard origin/main
   git pull -q --rebase origin main
   printf '%s\n' "$2" > "$1"
-  git add -A && git commit -qm "student: $1" && git push -q origin HEAD:main
+  # As the student: run.sh sets the name github-actions[bot] in this clone
+  git add -A && git -c user.name=student -c user.email=s@s commit -qm "student: $1" && git push -q origin HEAD:main
 }
 
 run() { # <mode> <fake mode>
@@ -111,6 +112,8 @@ expect "score 100 %" contains "$TS/FEEDBACK.md" "**Ergebnis: 100 %**"
 expect "requirement line with short text" contains "$TS/FEEDBACK.md" '- ✅ **1. Zwei `prompt()`-Aufrufe: Name, dann Zahl.** – Gut gemacht (R1).'
 expect "criteria lines" contains "$TS/FEEDBACK.md" "- **Codequalität:** Passt (C2)."
 expect "commit count" contains "$TS/FEEDBACK.md" '- **Commits in `workspace/`:** 1'
+expect "title names the commit of the judged work (the student commit), not the feedback commit" \
+  bash -c "git -C '$T/remote.git' show main:'$TS/FEEDBACK.md' | grep -q '^# Feedback: Greeting – [0-9.]* [0-9:]* · $(git -C "$T/remote.git" log -1 --format=%h main -- "$TS/workspace")\$'"
 expect "multi-line text joined" contains "$TS/FEEDBACK.md" "Template Literals verwenden."
 expect "prompt: tsc passed" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'No errors.'"
 expect "prompt: example run with answers" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'Hello Mia! Twice your number is 6.'"
@@ -155,6 +158,13 @@ for mode in nojson wrongids percent secret; do
   expect "$mode: secret never on the remote" bash -c "! git -C '$T/remote.git' log -p --all | grep -q fake-secret"
 done
 
+echo "5b. Nightly run: the work of the failed runs gets its feedback"
+run missing good
+expect "run succeeds" exit_code 0
+expect "outdated feedback updated" test "$(count "$TS/FEEDBACK.md" "## Update – ")" = 3
+expect "update names the commit of the judged work" \
+  bash -c "git -C '$T/remote.git' show main:'$TS/FEEDBACK.md' | grep -q '^## Update – .* · $(git -C "$T/remote.git" log -1 --format=%h main -- "$TS/workspace")\$'"
+
 echo "6. HTML: stylesheet not linked → capped; nested requirement items"
 student "$HTML/workspace/styles.css" '.card { border: 1px solid; padding: 1rem; }'
 run changed good
@@ -175,7 +185,7 @@ echo "8. FEEDBACK_PUSH=later: run.sh only commits, push.sh pushes after a studen
 student "$TS/workspace/main.ts" 'console.log("later");'
 PUSH=later run changed good
 expect "run succeeds" exit_code 0
-expect "nothing pushed by run.sh" test "$(count "$TS/FEEDBACK.md" "## Update – ")" = 2
+expect "nothing pushed by run.sh" test "$(count "$TS/FEEDBACK.md" "## Update – ")" = 3
 git clone -q "$T/remote.git" "$T/other"
 printf 'meanwhile\n' > "$T/other/notes.txt"
 git -C "$T/other" add notes.txt
@@ -184,7 +194,7 @@ git -C "$T/other" push -q origin HEAD:main
 env PUSH_TOKEN=test-token BRANCH=main bash .feedback/scripts/push.sh > "$T/push.log" 2>&1
 echo $? > "$T/exit"
 expect "push succeeds" exit_code 0
-expect "feedback pushed" test "$(count "$TS/FEEDBACK.md" "## Update – ")" = 3
+expect "feedback pushed" test "$(count "$TS/FEEDBACK.md" "## Update – ")" = 4
 expect "student commit kept" contains notes.txt meanwhile
 env BRANCH=main bash .feedback/scripts/push.sh > "$T/push.log" 2>&1
 expect "second push: nothing to push" grep -q "No feedback to push." "$T/push.log"
@@ -513,6 +523,71 @@ student "$GAME/workspace/main.ts" 'const state: number = "Won";
 document.querySelector("#state")!.textContent = `${state}`;'
 run changed good
 expect "own npm project of the student: a type error caps the score" contains "$GAME/FEEDBACK.md" "\`npm run build\` meldet Fehler"
+
+echo "14. Outdated feedback: a push without a run, a push during a run, an older heading"
+student "$NODE/workspace/main.js" 'console.log("lost push");'
+student "$HTML/workspace/styles.css" '.card { border: 2px solid; padding: 1rem; }'
+before=$(count "$NODE/FEEDBACK.md" "## Update – ")
+run changed good
+expect "push without a run: run succeeds" exit_code 0
+expect "push without a run: the pushed assignment first, then the outdated one" \
+  bash -c "grep -A2 '^Assignments:' '$T/run.log' | tr '\n' ' ' | grep -q 'Assignments: - 30-css-basics/30.01-card - 03-node/03.01-printer'"
+expect "push without a run: its work gets feedback in the next run" test "$(count "$NODE/FEEDBACK.md" "## Update – ")" = $((before + 1))
+expect "push without a run: the prompt holds its work" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'lost push'"
+
+student "$NODE/workspace/main.js" 'console.log("seen");'
+seen=$(git rev-parse --short HEAD)
+PUSH=later run changed good
+git clone -q "$T/remote.git" "$T/during"
+printf 'console.log("unseen");\n' > "$T/during/$NODE/workspace/main.js"
+git -C "$T/during" -c user.name=s -c user.email=s@s commit -qam "student: during the run"
+git -C "$T/during" push -q origin HEAD:main
+env BRANCH=main bash .feedback/scripts/push.sh > "$T/push.log" 2>&1
+git fetch -q origin && git reset -q --hard origin/main
+expect "push during a run: the feedback commit comes after the student commit" \
+  test "$(git log -1 --format=%s HEAD~1)" = "student: during the run"
+expect "push during a run: the heading names the judged commit, not the newer one" \
+  bash -c "git -C '$T/remote.git' show main:'$NODE/FEEDBACK.md' | grep -q '^## Update – .* · $seen\$'"
+before=$(count "$NODE/FEEDBACK.md" "## Update – ")
+run changed good
+expect "push during a run: the change that the model never saw gets feedback" \
+  test "$(count "$NODE/FEEDBACK.md" "## Update – ")" = $((before + 1))
+expect "push during a run: the prompt holds the unseen work" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q 'unseen'"
+
+# FEEDBACK.md of an older feedback program: headings without a commit, changed
+# by a teacher after the student's last change (as a rebase in push.sh did)
+older_headings() {
+  git reset -q --hard origin/main
+  python3 - "$HTML/FEEDBACK.md" "${1:-}" <<'PY'
+import re, sys
+path, commits = sys.argv[1], sys.argv[2]
+text = open(path, encoding="utf-8").read()
+text = re.sub(r"^(#+ .* – \d\d\.\d\d\.\d{4} \d\d:\d\d) · [0-9a-f]+$", r"\1", text, flags=re.M)
+if commits:
+    at = text.rindex("**Commits in `workspace/`:** ")
+    end = text.index("\n", at)
+    text = text[:at] + "**Commits in `workspace/`:** " + commits + text[end:]
+open(path, "w", encoding="utf-8").write(text)
+PY
+  git -c user.name=t -c user.email=t@t commit -qam "teacher: feedback of an older program" && git push -q origin HEAD:main
+}
+student "$HTML/workspace/styles.css" '.card { border: 3px solid; padding: 1rem; }'
+older_headings
+expect "older headings: no commit" bash -c "! git -C '$T/remote.git' show main:'$HTML/FEEDBACK.md' | grep -q '^#.* · [0-9a-f]*\$'"
+before=$(count "$HTML/FEEDBACK.md" "## Update – ")
+run missing good
+expect "older heading: the count of commits finds the judged work, the later change gets feedback" \
+  test "$(count "$HTML/FEEDBACK.md" "## Update – ")" = $((before + 1))
+expect "older heading: the prompt shows the changes since the judged work" bash -c "$(declare -f last_prompt); T=$T; last_prompt | grep -q '+.card { border: 3px solid; padding: 1rem; }'"
+older_headings
+before=$(grep -c PROMPT-END "$T/prompts.log")
+run missing good
+expect "older heading, unchanged work: no model run" test "$(grep -c PROMPT-END "$T/prompts.log")" = "$before"
+older_headings 99
+before=$(count "$HTML/FEEDBACK.md" "## Update – ")
+run missing good
+expect "older heading whose count fits no commit: new feedback" test "$(count "$HTML/FEEDBACK.md" "## Update – ")" = $((before + 1))
+
 echo
 echo "$PASSED passed, $FAILED failed (logs in $T)"
 [ "$FAILED" -eq 0 ]

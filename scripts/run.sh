@@ -6,9 +6,17 @@
 #
 # Usage: .feedback/scripts/run.sh changed|missing|all
 #
-#   changed  assignments whose workspace changed in the pushed commits
-#   missing  assignments with student work but no FEEDBACK.md (nightly)
+#   changed  assignments whose workspace changed in the pushed commits, then
+#            every other one whose feedback is missing or outdated (push)
+#   missing  assignments with student work whose FEEDBACK.md is missing or
+#            older than the work (nightly)
 #   all      every assignment with student work (manual run)
+#
+# A feedback is outdated when the workspace differs from the work that its
+# newest heading names (`– <time> · <commit>`, see scripts/feedback.py
+# outdated). So a push that started no run (GitHub sometimes sends no push
+# event), a failed run, an assignment over max_assignments_per_run or a student
+# push during a run gets its feedback in the next run.
 #
 # Environment: BRANCH, BEFORE and SHA (mode changed), the secret of the chosen
 # engine (see engines/), FEEDBACK_CONFIG (path of the central config.yml),
@@ -135,10 +143,20 @@ case "$MODE" in
     # Everything between 20-assignments/ and /workspace/ is the assignment folder
     CHANGED=$(git diff --name-only "$BASE" "${SHA:-HEAD}" \
       | sed -n 's|^20-assignments/\(.*\)/workspace/.*|\1|p' | sort -u)
+    # The pushed assignments first, then the others with outdated feedback
     # shellcheck disable=SC2086
-    ASSIGNMENTS=$([ -z "$CHANGED" ] || bash "$FEEDBACK_CENTRAL/scripts/has-implementation.sh" $CHANGED)
+    CANDIDATES=$({
+      [ -z "$CHANGED" ] || bash "$FEEDBACK_CENTRAL/scripts/has-implementation.sh" $CHANGED
+      bash "$FEEDBACK_CENTRAL/scripts/has-implementation.sh"
+    } | awk '!seen[$0]++')
+    # shellcheck disable=SC2086
+    ASSIGNMENTS=$([ -z "$CANDIDATES" ] || feedback outdated $CANDIDATES)
     ;;
-  missing) ASSIGNMENTS=$(bash "$FEEDBACK_CENTRAL/scripts/has-implementation.sh" --missing-feedback-only) ;;
+  missing)
+    CANDIDATES=$(bash "$FEEDBACK_CENTRAL/scripts/has-implementation.sh")
+    # shellcheck disable=SC2086
+    ASSIGNMENTS=$([ -z "$CANDIDATES" ] || feedback outdated $CANDIDATES)
+    ;;
   all) ASSIGNMENTS=$(bash "$FEEDBACK_CENTRAL/scripts/has-implementation.sh") ;;
   *)
     echo "::error::Unknown mode '$MODE' (changed, missing or all)."
@@ -190,9 +208,8 @@ for ASSIGNMENT in $ASSIGNMENTS; do
 
   git -c rebase.autoStash=true pull --quiet --rebase origin "$BRANCH" || echo "Pull completed with warnings (ignored)"
 
-  # Unchanged work since the last feedback needs no model run
-  LAST=$(git log -1 --format=%H -- "$FEEDBACK" 2>/dev/null || true)
-  if [ -f "$FEEDBACK" ] && [ -n "$LAST" ] && git diff --quiet "$LAST" HEAD -- "$ASSIGNMENT_PATH/workspace"; then
+  # Unchanged work since the work that the last feedback judged needs no model run
+  if [ -z "$(feedback outdated "$ASSIGNMENT")" ]; then
     echo "ℹ️ No changes since the last feedback."
     echo "::endgroup::"
     continue

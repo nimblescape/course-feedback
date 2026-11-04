@@ -36,7 +36,7 @@ score; the model has no tools and only judges the student's code.
 | `engine`                  | File in `engines/`: `copilot` or `claude-code`              |
 | `models.<engine>`         | Exact model name per engine (no alias)                      |
 | `versions`                | Node.js major version, exact CLI version per engine, and `course`: the version of the npm package `@nimblescape/course` that the runs start with npx, or a commit of nimblescape/course-vscode that the runs build |
-| `max_assignments_per_run` | Cost limit per run; the rest follow in the nightly run      |
+| `max_assignments_per_run` | Cost limit per run; the rest follow in the next run        |
 | `courses.<course-id>`     | Optional values for one course, for example a smaller model |
 
 A change on `main` applies to every student repo at its next run.

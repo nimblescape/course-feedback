@@ -3,17 +3,13 @@
 # student work, i.e. whose workspace/ folder differs from the version the
 # template added (changed or new files).
 #
-# Usage: has-implementation.sh [--missing-feedback-only] [assignment ...]
+# Usage: has-implementation.sh [assignment ...]
 #
-# With assignment arguments, only these assignments are checked.
+# With assignment arguments, only these assignments are checked. Whether the
+# feedback of an assignment is missing or outdated decides
+# `scripts/feedback.py outdated`.
 
 set -euo pipefail
-
-MISSING_ONLY=false
-if [ "${1:-}" = "--missing-feedback-only" ]; then
-  MISSING_ONLY=true
-  shift
-fi
 
 workspace_changed_since_template() {
   local dir="$1"
@@ -35,9 +31,6 @@ workspace_changed_since_template() {
 check() {
   local assignment_path="$1"
   [ -f "$assignment_path/README.md" ] && [ -d "$assignment_path/workspace" ] || return 0
-  if $MISSING_ONLY && [ -f "$assignment_path/FEEDBACK.md" ]; then
-    return 0
-  fi
   if workspace_changed_since_template "$assignment_path/workspace"; then
     echo "${assignment_path#20-assignments/}"
   fi

@@ -11,8 +11,8 @@ name: Feedback
 # an organisation admin (see the README of course-feedback); without the secret
 # it uses GITHUB_TOKEN.
 #
-#   push      assignments whose workspace/ changed
-#   schedule  nightly safety net: student work without FEEDBACK.md
+#   push      assignments whose workspace/ changed, then those with outdated feedback
+#   schedule  nightly safety net: student work whose FEEDBACK.md is missing or outdated
 #   manual    every assignment with student work (or the chosen mode)
 on:
   push:
